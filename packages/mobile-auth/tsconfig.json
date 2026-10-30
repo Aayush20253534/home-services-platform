@@ -7,9 +7,7 @@
       "ES2022",
       "DOM"
     ],
-    "types": [
-      "react"
-    ]
+    "types": ["react", "node"]
   },
   "include": [
     "src/**/*.tsx"
