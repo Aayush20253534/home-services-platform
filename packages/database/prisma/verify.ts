@@ -34,6 +34,63 @@ async function verify(): Promise<void> {
         data: { providerId: provider.id, label: 'Geo test', latitude: 25.4358, longitude: 81.8463, radiusKm: 3 },
       });
 
+      // Exercise relational writes using the actual generated Prisma client.
+      // The entire verification transaction is deliberately rolled back.
+      const customer = await transaction.user.create({
+        data: { email: `customer-${randomUUID()}@example.invalid`, role: 'CUSTOMER' },
+      });
+      const address = await transaction.address.create({
+        data: {
+          userId: customer.id,
+          label: 'Temporary',
+          line1: 'Database verification fixture',
+          city: 'Prayagraj',
+          state: 'Uttar Pradesh',
+          postalCode: '211001',
+          latitude: 25.4358,
+          longitude: 81.8463,
+        },
+      });
+      const catalogService = await transaction.service.findFirstOrThrow({
+        where: { isActive: true },
+      });
+      await transaction.providerSkill.create({
+        data: { providerId: provider.id, serviceId: catalogService.id, approved: true },
+      });
+      const booking = await transaction.booking.create({
+        data: {
+          customerId: customer.id,
+          serviceId: catalogService.id,
+          addressId: address.id,
+          scheduledFor: new Date('2026-11-01T10:00:00Z'),
+          estimatedPricePaise: catalogService.basePricePaise,
+        },
+      });
+      await transaction.bookingStatusEvent.create({
+        data: { bookingId: booking.id, toStatus: 'REQUESTED', actorUserId: customer.id },
+      });
+      await transaction.assignmentOffer.create({
+        data: {
+          bookingId: booking.id,
+          providerId: provider.id,
+          expiresAt: new Date('2026-11-01T09:30:00Z'),
+        },
+      });
+      await transaction.providerAssignment.create({
+        data: { bookingId: booking.id, providerId: provider.id },
+      });
+      await transaction.payment.create({
+        data: { bookingId: booking.id, amountPaise: catalogService.basePricePaise, gateway: 'verification-only' },
+      });
+      const saved = await transaction.booking.findUniqueOrThrow({
+        where: { id: booking.id },
+        include: { assignment: true, offers: true, payments: true, statusEvents: true },
+      });
+      assert.equal(saved.assignment?.providerId, provider.id);
+      assert.equal(saved.offers.length, 1);
+      assert.equal(saved.payments.length, 1);
+      assert.equal(saved.statusEvents.length, 1);
+
       const nearby = await findEligibleServiceAreas(transaction, { latitude: 25.436, longitude: 81.847 });
       assert.ok(nearby.some((area) => area.providerId === provider.id), 'nearby provider should match');
       const distant = await findEligibleServiceAreas(transaction, { latitude: 28.6139, longitude: 77.209 });

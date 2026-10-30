@@ -58,6 +58,9 @@ jobs:
       - name: Seed example service catalog
         run: pnpm db:seed
 
+      - name: Verify catalog seed idempotency
+        run: pnpm db:seed
+
       - name: Verify database and spatial queries
         run: pnpm db:verify
 
