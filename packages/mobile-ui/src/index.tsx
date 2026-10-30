@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -176,15 +177,23 @@ export function AppShell<T extends string>({
   tabs,
   currentTab,
   onTabChange,
+  scrollKey,
+  refreshing = false,
+  onRefresh,
 }: {
   children: ReactNode;
   tabs: readonly TabDefinition<T>[];
   currentTab: T;
   onTabChange: (tab: T) => void;
+  scrollKey?: string;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }) {
   return (
     <SafeAreaView style={styles.shell}>
       <ScrollView
+        key={scrollKey}
+        refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}

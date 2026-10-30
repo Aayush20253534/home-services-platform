@@ -71,6 +71,10 @@ pnpm db:provision-admin +919876543210
 
 The admin login is at `http://localhost:3000/login`. Admin registration is not publicly available; provisioned phones only. Detailed setup and endpoints: `docs/phases/04-authentication.md`.
 
+## Customer UI (Phase 06)
+
+The Expo customer app provides live service browsing, filters and sorting, service details, saved-service shortcuts, and a validated appointment **preview**. Requests are local in-memory drafts, not bookings. See `docs/phases/06-customer-interface.md`.
+
 ## Checks
 
 ```bash
@@ -111,6 +115,7 @@ docs/
 - **Phase 03:** Prisma relational schema, versioned PostGIS migration, database readiness, seeded catalog, and spatial verification.
 - **Phase 04:** Implemented phone OTP, revocable sessions, role guards, admin provisioning, and protected mobile/web login screens.
 - **Phase 05:** Live PostgreSQL categories/services, admin catalog create/edit/archive, and customer catalog API.
+- **Phase 06:** Refined customer mobile experience: live discovery, filter/sort, service details, session-only favorites, request previews, FAQ/profile, and mobile navigation.
 
 See `docs/phases/01-foundation.md`, `docs/phases/02-design-system.md`, `docs/phases/03-database.md`, `docs/phases/04-authentication.md`, and `docs/architecture/design-system.md` for details. **All currently displayed booking/provider/customer records, prices, counts and earnings are illustrative.** Customer drafts, provider availability and admin service creation exist only as temporary UI state; they are not persisted or submitted. Backend integration begins in later phases.
 

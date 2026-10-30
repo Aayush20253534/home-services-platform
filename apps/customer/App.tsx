@@ -1,382 +1,546 @@
 import { MobileAuthGate, useMobileAuth } from '@home-services/mobile-auth';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BackHandler, Pressable, ScrollView, StatusBar, StyleSheet, TextInput, View } from 'react-native';
 import {
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
-import {
-  AppButton,
-  AppShell,
-  AppText,
-  Badge,
-  Icon,
-  Notice,
-  PageHeader,
-  SearchField,
-  SectionHeading,
-  SurfaceCard,
-  type IconName,
-  type TabDefinition,
+  AppButton, AppShell, AppText, Badge, Icon, Notice, PageHeader,
+  SearchField, SectionHeading, SurfaceCard, type IconName, type TabDefinition,
 } from '@home-services/mobile-ui';
 import { colors, radii } from '@home-services/design-tokens';
+import {
+  fetchCatalog, filterServices, priceLabel,
+  type CatalogCategory, type CatalogService, type SortMode,
+} from './src/catalog';
+import {
+  formatPreferredSlot, TIME_OPTIONS, upcomingDays, validateDraft,
+  type BookingDraft, type BookingInput,
+} from './src/booking';
 
-type CustomerTab = 'home' | 'explore' | 'bookings' | 'profile';
-type Service = {
-  id: string;
-  name: string;
-  category: string;
-  icon: IconName;
-  duration: string;
-  price: string;
-  description: string;
-  accent: string;
-};
+type Tab = 'home' | 'explore' | 'bookings' | 'profile';
+type Screen = 'service' | 'schedule' | 'review' | 'addresses' | 'payments' | 'support' | 'privacy' | 'favorites' | null;
 
-const tabs: readonly TabDefinition<CustomerTab>[] = [
+const tabs: readonly TabDefinition<Tab>[] = [
   { id: 'home', title: 'Home', icon: 'home-outline' },
   { id: 'explore', title: 'Explore', icon: 'grid-outline' },
-  { id: 'bookings', title: 'Bookings', icon: 'calendar-outline' },
+  { id: 'bookings', title: 'Requests', icon: 'receipt-outline' },
   { id: 'profile', title: 'Profile', icon: 'person-outline' },
 ];
+const benefits: { icon: IconName; heading: string; caption: string }[] = [
+  { icon: 'search-outline', heading: 'Find the service', caption: 'Choose a solution from the current catalog' },
+  { icon: 'calendar-outline', heading: 'Share a preference', caption: 'Add an address and preferred appointment' },
+  { icon: 'shield-checkmark-outline', heading: 'Get confirmation', caption: 'Provider assignment is planned for later phases' },
+];
+const faqs = [
+  { title: 'Is this a confirmed booking?', body: 'Not yet. This version creates on-device request previews only. Booking submission and provider assignment arrive in later phases.' },
+  { title: 'Are prices final?', body: 'Prices are read from the current service catalog. Inspection-based jobs may need an approved quote before any additional work.' },
+  { title: 'Where are my saved requests?', body: 'Your request previews are held only in app memory for now. They disappear when the app restarts or you sign out.' },
+  { title: 'How do I change my phone number?', body: 'Account settings and number changes are not yet supported. Sign out and use a different existing account to sign in.' },
+];
 
-type CategoryTileItem = { id: string; name: string; slug: string; icon: IconName; tint: string };
-type ApiCategory = { id: string; slug: string; name: string; isActive: boolean };
-type ApiService = {
-  id: string; slug: string; name: string; description: string | null;
-  basePricePaise: number; durationMinutes: number;
-  category: { id: string; slug: string; name: string };
-};
-
-const categoryIcons: Record<string, { icon: IconName; tint: string; accent: string }> = {
-  cleaning: { icon: 'sparkles-outline', tint: '#E2F8F0', accent: '#DDF7EB' },
-  electrical: { icon: 'flash-outline', tint: '#FFF1D9', accent: '#FFF0D6' },
-  plumbing: { icon: 'water-outline', tint: '#E5F0FF', accent: '#E4F0FF' },
-  'ac-repair': { icon: 'snow-outline', tint: '#F0E9FF', accent: '#EDE9FF' },
-  appliances: { icon: 'construct-outline', tint: '#FFF0EE', accent: '#FFF0EE' },
-  painting: { icon: 'color-palette-outline', tint: '#EDF2FD', accent: '#EEF2FF' },
-};
-const defaultIcon = { icon: 'home-outline' as IconName, tint: '#EDF2FD', accent: '#EEF2FF' };
-function toDisplayService(item: ApiService): Service {
-  const style = categoryIcons[item.category.slug] ?? defaultIcon;
-  return {
-    id: item.id, name: item.name, category: item.category.name,
-    icon: style.icon, accent: style.accent,
-    duration: `${item.durationMinutes} min`,
-    price: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(item.basePricePaise / 100),
-    description: item.description || 'Professional home service',
-  };
-}
-
-type Draft = { id: string; service: string; address: string; time: string; details: string };
-
-function ServiceItem({ service, onPress }: { service: Service; onPress: () => void }) {
+function ServiceTile({
+  item, favorite, onOpen, onFavorite,
+}: {
+  item: CatalogService; favorite: boolean; onOpen: () => void; onFavorite: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${service.name}`}>
-      <SurfaceCard style={styles.serviceItem}>
-        <View style={[styles.serviceArt, { backgroundColor: service.accent }]}>
-          <Icon name={service.icon} size={27} color={colors.ink} />
+    <SurfaceCard style={styles.serviceCard}>
+      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`View ${item.name}`} style={styles.serviceMain}>
+        <View style={[styles.serviceArt, { backgroundColor: item.tint }]}>
+          <Icon name={item.icon} size={29} color={colors.ink} />
         </View>
-        <View style={styles.flex}>
-          <AppText weight="bold" size={15}>{service.name}</AppText>
-          <AppText color={colors.muted} size={12} style={{ marginTop: 5 }}>{service.duration} • From {service.price}</AppText>
-          <AppText color={colors.inkSoft} size={12} style={{ marginTop: 5, lineHeight: 17 }}>{service.category}</AppText>
+        <View style={{ flex: 1, gap: 5 }}>
+          <AppText size={11} color={colors.teal} weight="bold">{item.categoryName.toUpperCase()}</AppText>
+          <AppText size={15} weight="bold" style={{ lineHeight: 21 }}>{item.name}</AppText>
+          <AppText size={12} color={colors.muted}>{item.durationMinutes} min · {item.pricingType === 'FIXED' ? 'Fixed price' : 'Inspection'}</AppText>
+          <AppText weight="bold" size={16}>{priceLabel(item.basePricePaise)}</AppText>
         </View>
-        <Icon name="chevron-forward-outline" color={colors.muted} size={18} />
-      </SurfaceCard>
-    </Pressable>
+      </Pressable>
+      <Pressable style={styles.favoriteButton} onPress={onFavorite} accessibilityRole="button" accessibilityLabel={favorite ? `Remove ${item.name} from saved` : `Save ${item.name}`}>
+        <Icon name={favorite ? 'heart' : 'heart-outline'} size={21} color={favorite ? colors.danger : colors.inkSoft} />
+      </Pressable>
+    </SurfaceCard>
   );
 }
 
-function CategoryTile({ item, onPress }: { item: CategoryTileItem; onPress: () => void }) {
+function CategoryTile({ item, onPress }: { item: CatalogCategory; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={styles.category} accessibilityRole="button">
-      <View style={[styles.categoryArt, { backgroundColor: item.tint }]}>
-        <Icon name={item.icon} color={colors.ink} size={26} />
+    <Pressable accessibilityRole="button" accessibilityLabel={`Browse ${item.name}`} onPress={onPress} style={styles.categoryTile}>
+      <View style={[styles.categoryIcon, { backgroundColor: item.tint }]}>
+        <Icon name={item.icon} size={28} color={colors.ink} />
       </View>
-      <AppText size={12} weight="semibold">{item.name}</AppText>
+      <AppText weight="semibold" size={12} style={{ textAlign: 'center' }}>{item.name}</AppText>
     </Pressable>
   );
 }
 
-function PreviewApp() {
-  const { logout } = useMobileAuth();
-  const [categories, setCategories] = useState<CategoryTileItem[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState('');
-  const [tab, setTab] = useState<CustomerTab>('home');
-  const [category, setCategory] = useState('All');
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Service | null>(null);
-  const [bookingMode, setBookingMode] = useState(false);
-  const [review, setReview] = useState(false);
-  const [address, setAddress] = useState('');
-  const [slot, setSlot] = useState('Tomorrow · 10:00 AM');
-  const [problem, setProblem] = useState('');
-  const [drafts, setDrafts] = useState<Draft[]>([]);
+function EmptyState({
+  icon, title, detail, action, onAction,
+}: {
+  icon: IconName; title: string; detail: string; action?: string; onAction?: () => void;
+}) {
+  return (
+    <SurfaceCard style={styles.emptyState}>
+      <View style={styles.emptyIcon}><Icon name={icon} color={colors.primary} size={31} /></View>
+      <AppText weight="bold" size={18} style={{ textAlign: 'center' }}>{title}</AppText>
+      <AppText color={colors.inkSoft} size={13} style={styles.emptyText}>{detail}</AppText>
+      {action && onAction && <AppButton compact label={action} onPress={onAction} />}
+    </SurfaceCard>
+  );
+}
 
-  const loadCatalog = useCallback(async () => {
-    setCatalogLoading(true); setCatalogError('');
+function CustomerApp() {
+  const { user, logout } = useMobileAuth();
+  const [tab, setTab] = useState<Tab>('home');
+  const [screen, setScreen] = useState<Screen>(null);
+  const [categories, setCategories] = useState<CatalogCategory[]>([]);
+  const [services, setServices] = useState<CatalogService[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+  const requestVersion = useRef(0);
+  const [query, setQuery] = useState('');
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortMode>('name');
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [address, setAddress] = useState('');
+  const [note, setNote] = useState('');
+  const dates = upcomingDays();
+  const [preferredDate, setPreferredDate] = useState(dates[0].id);
+  const [preferredTime, setPreferredTime] = useState('11:00');
+  const [drafts, setDrafts] = useState<BookingDraft[]>([]);
+  const [formError, setFormError] = useState('');
+  const [faqExpanded, setFaqExpanded] = useState<number | null>(null);
+
+  const load = useCallback(async (signal?: AbortSignal, initial = false) => {
+    const version = ++requestVersion.current;
+    if (!initial) setRefreshing(true);
+    setError('');
     try {
-      const api = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-      if (!api) throw new Error('EXPO_PUBLIC_API_URL is not configured');
-      const [categoriesResponse, servicesResponse] = await Promise.all([
-        fetch(`${api}/catalog/categories`),
-        fetch(`${api}/catalog/services?limit=100`),
-      ]);
-      if (!categoriesResponse.ok || !servicesResponse.ok) throw new Error('Service catalog is unavailable');
-      const [categoryData, serviceData]: [ApiCategory[], ApiService[]] = await Promise.all([
-        categoriesResponse.json(), servicesResponse.json(),
-      ]);
-      if (!Array.isArray(categoryData) || !Array.isArray(serviceData)) throw new Error('Invalid catalog response');
-      setCategories(categoryData.map((c) => ({
-        id: c.id, name: c.name, slug: c.slug,
-        icon: (categoryIcons[c.slug] ?? defaultIcon).icon,
-        tint: (categoryIcons[c.slug] ?? defaultIcon).tint,
-      })));
-      setServices(serviceData.map(toDisplayService));
-    } catch (error) {
-      setCategories([]); setServices([]);
-      setCatalogError(error instanceof Error ? error.message : 'Catalog loading failed');
+      const data = await fetchCatalog(process.env.EXPO_PUBLIC_API_URL, signal);
+      if (version !== requestVersion.current || signal?.aborted) return;
+      setCategories(data.categories);
+      setServices(data.services);
+    } catch (cause) {
+      if (version !== requestVersion.current || signal?.aborted) return;
+      setError(cause instanceof Error ? cause.message : 'Could not load services');
+      // Never replace unavailable live data with fictitious catalog entries.
+      if (initial) { setCategories([]); setServices([]); }
     } finally {
-      setCatalogLoading(false);
+      if (version === requestVersion.current && !signal?.aborted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
-  useEffect(() => { void loadCatalog(); }, [loadCatalog]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void load(controller.signal, true);
+    return () => { controller.abort(); requestVersion.current += 1; };
+  }, [load]);
 
-  const filtered = useMemo(() => {
-    const query = search.toLowerCase().trim();
-    return services.filter((service) =>
-      (category === 'All' || service.category === category) &&
-      (`${service.name} ${service.category} ${service.description}`).toLowerCase().includes(query),
-    );
-  }, [category, search, services]);
+  const displayed = useMemo(
+    () => filterServices(services, query, categoryId, sort, favoritesOnly, favorites),
+    [services, query, categoryId, sort, favoritesOnly, favorites],
+  );
+  const selected = services.find((service) => service.id === selectedId) ?? null;
+  const selectedCategory = categories.find((category) => category.id === categoryId);
+  const dateOptions = upcomingDays();
+  const draftData: BookingInput | null = selected ? {
+    serviceId: selected.id,
+    serviceName: selected.name,
+    basePricePaise: selected.basePricePaise,
+    address,
+    note,
+    preferredDate,
+    preferredTime,
+  } : null;
 
-  function navigate(next: CustomerTab) {
-    setSelected(null);
-    setBookingMode(false);
-    setReview(false);
-    setTab(next);
+  function navigate(next: Tab) {
+    setTab(next); setScreen(null); setFormError('');
   }
-
-  function openService(service: Service) {
-    setSelected(service);
-    setBookingMode(false);
-    setReview(false);
+  function explore(id: string | null = null, onlyFavorites = false) {
+    setTab('explore'); setScreen(null); setCategoryId(id);
+    setFavoritesOnly(onlyFavorites); setQuery('');
   }
-
-  function back() {
-    if (review) setReview(false);
-    else if (bookingMode) setBookingMode(false);
-    else setSelected(null);
+  function toggleFavorite(id: string) {
+    setFavorites((existing) => existing.includes(id) ? existing.filter((item) => item !== id) : [...existing, id]);
   }
-
-  function saveDraft() {
+  function openService(id: string) {
+    setSelectedId(id); setScreen('service'); setFormError('');
+  }
+  function startRequest() {
     if (!selected) return;
-    setDrafts((current) => [
-      { id: `LOCAL-${Date.now()}`, service: selected.name, address: address.trim() || 'Address not provided', time: slot, details: problem.trim() },
-      ...current,
-    ]);
-    navigate('bookings');
+    setAddress(''); setNote(''); setPreferredDate(upcomingDays()[0].id);
+    setPreferredTime('11:00'); setFormError(''); setScreen('schedule');
   }
+  function goBack() {
+    if (screen === 'review') { setScreen('schedule'); return; }
+    if (screen === 'schedule') { setScreen('service'); return; }
+    setScreen(null);
+  }
+  useEffect(() => {
+    if (!screen) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { goBack(); return true; });
+    return () => subscription.remove();
+  });
+
+  function validateAndReview() {
+    if (!draftData) return;
+    const validation = validateDraft(draftData);
+    if (validation) { setFormError(validation); return; }
+    setFormError(''); setScreen('review');
+  }
+  function saveDraft() {
+    if (!draftData) return;
+    const validation = validateDraft(draftData);
+    if (validation) { setFormError(validation); setScreen('schedule'); return; }
+    setDrafts((existing) => [{
+      id: `LOCAL-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      ...draftData,
+      address: draftData.address.trim(),
+      note: draftData.note.trim(),
+    }, ...existing]);
+    setSelectedId(null); navigate('bookings');
+  }
+  function resumeDraft(draft: BookingDraft) {
+    const exists = services.some((service) => service.id === draft.serviceId);
+    if (!exists) return;
+    setSelectedId(draft.serviceId); setAddress(draft.address); setNote(draft.note);
+    setPreferredDate(dateOptions.some((day) => day.id === draft.preferredDate) ? draft.preferredDate : dateOptions[0].id);
+    setPreferredTime(draft.preferredTime); setFormError(''); setScreen('schedule');
+    setDrafts((items) => items.filter((item) => item.id !== draft.id));
+  }
+
+  const renderServices = (items: CatalogService[]) => items.map((item) =>
+    <ServiceTile key={item.id} item={item} favorite={favorites.includes(item.id)}
+      onOpen={() => openService(item.id)} onFavorite={() => toggleFavorite(item.id)} />,
+  );
+  const reload = () => { void load(); };
+  const goToProfile = (name: Screen) => { setTab('profile'); setScreen(name); };
 
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <AppShell tabs={tabs} currentTab={tab} onTabChange={navigate}>
-        {selected ? (
+      <AppShell tabs={tabs} currentTab={tab} onTabChange={navigate}
+        scrollKey={`${tab}:${screen ?? 'root'}`} refreshing={refreshing} onRefresh={reload}>
+        {screen ? (
           <>
-            <Pressable style={styles.back} onPress={back} accessibilityRole="button">
-              <Icon name="arrow-back" size={18} color={colors.ink} />
-              <AppText weight="semibold" size={13}>Back</AppText>
+            <Pressable style={styles.back} onPress={goBack} accessibilityRole="button" accessibilityLabel="Go back">
+              <Icon name="arrow-back" color={colors.ink} size={20} />
+              <AppText weight="semibold" size={14}>Back</AppText>
             </Pressable>
-            {review ? (
+            {screen === 'service' && (selected ? (
               <>
-                <PageHeader kicker="Booking preview" title="Review your request" description="This is a local demo. No service provider will be notified." />
-                <SurfaceCard>
-                  <AppText size={13} color={colors.muted}>SERVICE</AppText>
-                  <AppText weight="bold" size={19} style={styles.detailLine}>{selected.name}</AppText>
-                  <View style={styles.divider} />
-                  <AppText size={13} color={colors.muted}>ADDRESS</AppText>
-                  <AppText style={styles.detailLine}>{address.trim() || 'Not added'}</AppText>
-                  <View style={styles.divider} />
-                  <AppText size={13} color={colors.muted}>PREFERRED SLOT</AppText>
-                  <AppText style={styles.detailLine}>{slot}</AppText>
-                  <View style={styles.divider} />
-                  <AppText size={13} color={colors.muted}>ESTIMATED STARTING PRICE</AppText>
-                  <AppText weight="bold" size={22} style={styles.detailLine}>{selected.price}</AppText>
+                <View style={[styles.detailHero, { backgroundColor: selected.tint }]}>
+                  <Icon name={selected.icon} color={colors.ink} size={78} />
+                </View>
+                <View style={styles.inlineBetween}>
+                  <Badge label={selected.categoryName} tone="teal" />
+                  <Pressable accessibilityRole="button" accessibilityLabel="Toggle saved service" onPress={() => toggleFavorite(selected.id)} style={styles.roundAction}>
+                    <Icon name={favorites.includes(selected.id) ? 'heart' : 'heart-outline'} color={favorites.includes(selected.id) ? colors.danger : colors.ink} />
+                  </Pressable>
+                </View>
+                <AppText weight="bold" size={28} style={{ marginTop: 12, lineHeight: 36 }}>{selected.name}</AppText>
+                <AppText color={colors.inkSoft} style={{ marginTop: 12, lineHeight: 24 }}>{selected.description}</AppText>
+                <SurfaceCard style={{ marginTop: 24 }}>
+                  <View style={styles.inlineBetween}>
+                    <View style={{ gap: 7 }}>
+                      <AppText color={colors.muted} size={12}>{selected.pricingType === 'FIXED' ? 'BASE SERVICE PRICE' : 'INSPECTION STARTING PRICE'}</AppText>
+                      <AppText weight="bold" size={26}>{priceLabel(selected.basePricePaise)}</AppText>
+                    </View>
+                    <View style={styles.iconCircle}><Icon name="time-outline" color={colors.primary} size={24} /></View>
+                  </View>
+                  <View style={styles.separator} />
+                  <AppText color={colors.inkSoft} size={13}>Estimated duration: {selected.durationMinutes} minutes</AppText>
                 </SurfaceCard>
-                <Notice>Saving creates a draft on this device only. It is not submitted to an admin or provider.</Notice>
-                <AppButton label="Save demo draft" icon="bookmark-outline" onPress={saveDraft} />
+                <SectionHeading title="How it works" />
+                {benefits.map((benefit, index) => (
+                  <View key={benefit.heading} style={styles.step}>
+                    <View style={styles.stepNumber}><AppText weight="bold" color={colors.primary}>{index + 1}</AppText></View>
+                    <View style={{ flex: 1, gap: 5 }}>
+                      <AppText weight="bold">{benefit.heading}</AppText>
+                      <AppText size={12} color={colors.muted} style={{ lineHeight: 19 }}>{benefit.caption}</AppText>
+                    </View>
+                  </View>
+                ))}
+                <Notice>Prices come from the live catalog. The next step saves a draft, not an actual booking.</Notice>
+                <AppButton label="Create request preview" icon="arrow-forward-outline" onPress={startRequest} />
               </>
-            ) : bookingMode ? (
+            ) : (
+              <EmptyState icon="alert-circle-outline" title="Service unavailable" detail="The service may have been archived. Refresh the catalog to review active options." action="Explore services" onAction={() => explore()} />
+            ))}
+            {screen === 'schedule' && (
               <>
-                <PageHeader kicker="Step 2 of 2" title="Your appointment" description="Add a service address and choose a preferred time." />
-                <AppText weight="bold" size={13} style={styles.formLabel}>SERVICE ADDRESS</AppText>
-                <TextInput
-                  style={styles.textArea}
-                  placeholder="Flat, building, street and area"
-                  placeholderTextColor={colors.muted}
-                  value={address}
-                  onChangeText={setAddress}
-                  multiline
-                  accessibilityLabel="Service address"
-                />
-                <AppText weight="bold" size={13} style={styles.formLabel}>PREFERRED TIME</AppText>
-                <View style={styles.slotRow}>
-                  {['Tomorrow · 10:00 AM', 'Tomorrow · 2:00 PM', 'Saturday · 11:00 AM'].map((item) => (
-                    <Pressable
-                      key={item}
-                      onPress={() => setSlot(item)}
-                      style={[styles.slot, slot === item && styles.slotActive]}
-                      accessibilityRole="button"
-                    >
-                      <AppText size={12} weight="semibold" color={slot === item ? colors.primary : colors.inkSoft}>{item}</AppText>
+                <PageHeader kicker="Request preview · Step 1 of 2" title="Your preferred visit"
+                  description="Choose a date, time and address. No provider availability is confirmed yet." />
+                <SurfaceCard>
+                  <View style={styles.inlineBetween}>
+                    <AppText weight="bold">{selected?.name ?? 'Service unavailable'}</AppText>
+                    <AppText weight="bold" color={colors.primary}>{selected ? priceLabel(selected.basePricePaise) : ''}</AppText>
+                  </View>
+                </SurfaceCard>
+                <SectionHeading title="Choose a day" />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days}>
+                  {dateOptions.map((day) => (
+                    <Pressable key={day.id} onPress={() => setPreferredDate(day.id)}
+                      accessibilityRole="button" accessibilityState={{ selected: preferredDate === day.id }}
+                      style={[styles.dayCard, preferredDate === day.id && styles.dayCardActive]}>
+                      <AppText color={preferredDate === day.id ? '#fff' : colors.muted} size={12}>{day.day}</AppText>
+                      <AppText color={preferredDate === day.id ? '#fff' : colors.ink} size={23} weight="bold">{day.number}</AppText>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <SectionHeading title="Preferred arrival time" />
+                <View style={styles.timeGrid}>
+                  {TIME_OPTIONS.map((time) => (
+                    <Pressable key={time.value} accessibilityRole="button" accessibilityState={{ selected: preferredTime === time.value }}
+                      onPress={() => setPreferredTime(time.value)} style={[styles.timeChip, preferredTime === time.value && styles.timeChipActive]}>
+                      <Icon name="time-outline" size={17} color={preferredTime === time.value ? colors.primary : colors.muted} />
+                      <AppText color={preferredTime === time.value ? colors.primary : colors.inkSoft} weight="semibold" size={13}>{time.label}</AppText>
                     </Pressable>
                   ))}
                 </View>
-                <AppText weight="bold" size={13} style={styles.formLabel}>DESCRIBE THE PROBLEM (OPTIONAL)</AppText>
-                <TextInput
-                  style={styles.textArea}
-                  multiline
-                  placeholder="Tell the technician what is wrong..."
-                  placeholderTextColor={colors.muted}
-                  value={problem}
-                  onChangeText={setProblem}
-                  accessibilityLabel="Problem description"
-                />
-                <Notice>Scheduling and addresses are UI previews. Availability is not connected to live data.</Notice>
-                <AppButton label="Review request" icon="arrow-forward-outline" onPress={() => setReview(true)} disabled={!address.trim()} />
+                <SectionHeading title="Service address" />
+                <TextInput style={styles.textArea} multiline maxLength={240} value={address}
+                  onChangeText={(value) => { setAddress(value); setFormError(''); }}
+                  placeholder="Flat / house number, building, road and area"
+                  accessibilityLabel="Service address" placeholderTextColor={colors.muted} />
+                <AppText color={colors.muted} size={11} style={{ marginTop: -8, marginBottom: 14 }}>{address.length}/240 characters</AppText>
+                <AppText weight="bold" style={{ marginBottom: 10 }}>Describe the issue (optional)</AppText>
+                <TextInput style={styles.textArea} multiline maxLength={500} value={note} onChangeText={setNote}
+                  placeholder="What needs repairing, cleaning or checking?"
+                  accessibilityLabel="Problem description" placeholderTextColor={colors.muted} />
+                {formError ? <AppText color={colors.danger} size={13} style={{ marginBottom: 12 }}>{formError}</AppText> : null}
+                <Notice>The time is a preference only. Booking submission and provider confirmation are not available in Phase 06.</Notice>
+                <AppButton label="Review request" icon="arrow-forward-outline" onPress={validateAndReview} disabled={!selected} />
               </>
-            ) : (
+            )}
+            {screen === 'review' && draftData && (
               <>
-                <View style={[styles.detailHero, { backgroundColor: selected.accent }]}>
-                  <Icon name={selected.icon} color={colors.ink} size={72} />
-                </View>
-                <Badge label={selected.category} tone="teal" />
-                <AppText size={28} weight="bold" style={{ marginTop: 16, marginBottom: 10 }}>{selected.name}</AppText>
-                <AppText color={colors.inkSoft} style={{ lineHeight: 23 }}>{selected.description}</AppText>
-                <SurfaceCard style={{ marginTop: 22 }}>
-                  <View style={styles.horizontal}>
-                    <Icon name="time-outline" color={colors.primary} />
-                    <AppText color={colors.inkSoft} size={13}>{selected.duration}</AppText>
-                    <View style={{ flex: 1 }} />
-                    <AppText weight="bold" size={20}>{selected.price}</AppText>
+                <PageHeader kicker="Request preview · Step 2 of 2" title="Review the details"
+                  description="Check your information before saving a local draft." />
+                <SurfaceCard>
+                  {[
+                    { label: 'SERVICE', value: draftData.serviceName },
+                    { label: 'PREFERRED VISIT', value: formatPreferredSlot(draftData) },
+                    { label: 'SERVICE ADDRESS', value: draftData.address.trim() },
+                    { label: 'PROBLEM', value: draftData.note.trim() || 'No extra details' },
+                  ].map((item, index) => (
+                    <View key={item.label}>
+                      {index > 0 && <View style={styles.separator} />}
+                      <AppText color={colors.muted} size={11} weight="bold">{item.label}</AppText>
+                      <AppText style={{ marginTop: 7, lineHeight: 22 }} weight="semibold">{item.value}</AppText>
+                    </View>
+                  ))}
+                  <View style={styles.separator} />
+                  <View style={styles.inlineBetween}>
+                    <AppText color={colors.inkSoft}>Catalog starting price</AppText>
+                    <AppText weight="bold" size={22}>{priceLabel(draftData.basePricePaise)}</AppText>
                   </View>
                 </SurfaceCard>
-                <Notice>Service pricing comes from the live catalog. Booking submission is still a preview until Phase 08.</Notice>
-                <AppButton label="Choose a time" icon="calendar-outline" onPress={() => setBookingMode(true)} />
+                <Notice>No service provider will be notified. Saving creates an in-memory draft only; no booking is submitted, charged or confirmed.</Notice>
+                <AppButton label="Save local request draft" icon="bookmark-outline" onPress={saveDraft} />
+                <View style={{ marginTop: 8 }}><AppButton variant="quiet" label="Edit details" onPress={() => setScreen('schedule')} /></View>
+              </>
+            )}
+            {screen === 'favorites' && (
+              <>
+                <PageHeader kicker="Your shortlist" title="Saved services" description="A temporary shortlist for this app session." />
+                {renderServices(services.filter((service) => favorites.includes(service.id)))}
+                {!services.some((service) => favorites.includes(service.id)) && <EmptyState icon="heart-outline" title="Nothing saved yet" detail="Use the heart on a service to add it here." action="Explore services" onAction={() => explore()} />}
+                <Notice>Saved services are held in app memory and disappear after a restart.</Notice>
+              </>
+            )}
+            {screen === 'addresses' && (
+              <>
+                <PageHeader kicker="Account settings" title="My addresses" description="Saved addresses and location selection arrive in Phase 07." />
+                <EmptyState icon="location-outline" title="No saved addresses" detail="You can type an address in the request preview. Your address book is not connected yet." />
+                <Notice>Location permission is not requested by this phase.</Notice>
+              </>
+            )}
+            {screen === 'payments' && (
+              <>
+                <PageHeader kicker="Payments" title="Payment history" description="Track transactions here when payments launch." />
+                <EmptyState icon="wallet-outline" title="No transactions" detail="The application is not processing payments yet. No request draft creates a charge." />
+              </>
+            )}
+            {screen === 'support' && (
+              <>
+                <PageHeader kicker="Help centre" title="Common questions" description="Answers about the current application and planned booking experience." />
+                {faqs.map((faq, index) => (
+                  <SurfaceCard key={faq.title}>
+                    <Pressable accessibilityRole="button" accessibilityState={{ expanded: faqExpanded === index }}
+                      style={styles.inlineBetween} onPress={() => setFaqExpanded(faqExpanded === index ? null : index)}>
+                      <View style={{ flex: 1 }}><AppText weight="bold">{faq.title}</AppText></View>
+                      <Icon name={faqExpanded === index ? 'chevron-up' : 'chevron-down'} color={colors.muted} size={20} />
+                    </Pressable>
+                    {faqExpanded === index && <AppText style={{ marginTop: 14, lineHeight: 21 }} size={13} color={colors.inkSoft}>{faq.body}</AppText>}
+                  </SurfaceCard>
+                ))}
+                <Notice>Live customer-support tickets and messaging are not enabled in this phase.</Notice>
+              </>
+            )}
+            {screen === 'privacy' && (
+              <>
+                <PageHeader kicker="Account & security" title="Privacy overview" description="What this version stores, and what it does not." />
+                <SurfaceCard>
+                  {[
+                    ['Phone verification', 'Your phone number is used for OTP sign-in through the platform API.'],
+                    ['Session security', 'The app stores a refresh token in encrypted device storage.'],
+                    ['Request previews', 'Addresses, notes and draft requests are kept in app memory only until you close or restart the app.'],
+                    ['Payments and location', 'No payments are charged and device GPS access is not requested in this phase.'],
+                  ].map(([title, description], index) => (
+                    <View key={title}>
+                      {index > 0 && <View style={styles.separator} />}
+                      <AppText weight="bold">{title}</AppText>
+                      <AppText size={13} color={colors.inkSoft} style={{ lineHeight: 21, marginTop: 6 }}>{description}</AppText>
+                    </View>
+                  ))}
+                </SurfaceCard>
+                <Notice>This screen is a feature overview, not a substitute for a published legal privacy policy.</Notice>
+                <AppButton variant="secondary" label="Sign out" icon="log-out-outline" onPress={() => { void logout(); }} />
               </>
             )}
           </>
         ) : tab === 'home' ? (
           <>
-            <View style={styles.welcomeRow}>
-              <View>
-                <AppText color={colors.muted} size={13}>Welcome to Home Services</AppText>
-                <AppText weight="bold" size={25} style={{ marginTop: 5 }}>How can we help?</AppText>
+            <View style={styles.homeTop}>
+              <View style={{ gap: 7, flex: 1 }}>
+                <AppText size={12} color={colors.inkSoft}>HOME SERVICES / CUSTOMER</AppText>
+                <AppText weight="bold" size={27}>What needs attention?</AppText>
               </View>
-              <View style={styles.avatar}><Icon name="person-outline" color={colors.primary} size={22} /></View>
+              <Pressable style={styles.roundAction} onPress={() => setScreen('favorites')} accessibilityRole="button" accessibilityLabel="Saved services">
+                <Icon name="heart-outline" color={colors.primary} size={22} />
+              </Pressable>
             </View>
-            <Pressable style={styles.locationRow} onPress={() => navigate('profile')}>
-              <Icon name="location-outline" size={17} color={colors.teal} />
-              <AppText color={colors.inkSoft} size={12} weight="medium">Add your service location</AppText>
-              <Icon name="chevron-down-outline" size={14} color={colors.muted} />
-            </Pressable>
-            <View style={styles.promo}>
-              <View style={{ flex: 1 }}>
-                <AppText size={11} weight="bold" color="#BDE4E4" style={{ letterSpacing: 1.1 }}>AT YOUR DOORSTEP</AppText>
-                <AppText size={26} weight="bold" color="#FFFFFF" style={{ marginTop: 13, lineHeight: 33 }}>Expert care for your home.</AppText>
-                <AppText size={13} color="#CEDCF4" style={{ marginTop: 10, lineHeight: 20 }}>Explore trusted service categories, all in one place.</AppText>
+            <View style={styles.locationNote}>
+              <Icon name="location-outline" color={colors.teal} size={18} />
+              <AppText size={12} color={colors.inkSoft} style={{ flex: 1 }}>Location setup available in Phase 07</AppText>
+              <Badge label="Coming soon" tone="neutral" />
+            </View>
+            <View style={styles.hero}>
+              <View style={{ flex: 1, gap: 12 }}>
+                <AppText size={11} weight="bold" color="#A9DFE5" style={{ letterSpacing: 1.3 }}>YOUR HOME. YOUR WAY.</AppText>
+                <AppText size={26} weight="bold" color="#FFFFFF" style={{ lineHeight: 33 }}>The right service, without the guesswork.</AppText>
+                <AppText size={13} color="#D2DEEF" style={{ lineHeight: 21 }}>Explore current services and prepare a request in a few steps.</AppText>
               </View>
-              <View style={styles.promoIcon}><Icon name="home-outline" size={43} color="#FFFFFF" /></View>
+              <View style={styles.heroSymbol}><Icon name="home-outline" size={44} color="#FFFFFF" /></View>
             </View>
-            <SearchField value={search} onChangeText={(value) => { setSearch(value); setTab('explore'); }} placeholder="What needs fixing today?" />
-            {catalogError ? <Notice>{catalogError}. Check the API connection.</Notice> : null}
-            {catalogError && <AppButton label="Retry catalog" variant="secondary" compact onPress={() => { void loadCatalog(); }} />}
-            {catalogLoading && <AppText size={13} color={colors.muted}>Loading live catalog...</AppText>}
-            <SectionHeading title="Browse by category" action="See all" onAction={() => navigate('explore')} />
-            <View style={styles.categoriesGrid}>
-              {categories.map((item) => (
-                <CategoryTile key={item.name} item={item} onPress={() => { setCategory(item.name); navigate('explore'); }} />
-              ))}
+            <SearchField value={query} onChangeText={(value) => { explore(); setQuery(value); }} placeholder="What service do you need?" />
+            {error && <Notice>{error}.</Notice>}
+            {error && <AppButton compact variant="secondary" label="Retry catalog" icon="refresh-outline" onPress={reload} />}
+            {loading && <AppText color={colors.muted} size={13}>Loading services from the catalog...</AppText>}
+            <SectionHeading title="Find a category" action="View all" onAction={() => explore()} />
+            <View style={styles.categories}>
+              {categories.map((category) => <CategoryTile key={category.id} item={category} onPress={() => explore(category.id)} />)}
             </View>
-            <SectionHeading title="Popular services" action="View all" onAction={() => { setCategory('All'); navigate('explore'); }} />
-            {services.slice(0, 3).map((service) => <ServiceItem key={service.id} service={service} onPress={() => openService(service)} />)}
-            <Notice>Categories and prices load from the database. Bookings and checkout are not active yet.</Notice>
+            {!loading && !error && categories.length === 0 && <EmptyState icon="grid-outline" title="No categories published" detail="The catalog is empty. New categories will appear here after an admin publishes them." />}
+            <SectionHeading title="Explore services" action="See all" onAction={() => explore()} />
+            {renderServices(services.slice(0, 3))}
+            {!loading && !error && !services.length && <EmptyState icon="construct-outline" title="No services available" detail="Check again after the catalog has been updated." />}
+            <Notice>These are live catalog listings. Request submission, availability and payments are not yet enabled.</Notice>
           </>
         ) : tab === 'explore' ? (
           <>
-            <PageHeader kicker="Service catalog" title="Explore services" description="Find a solution for your home." />
-            <AppButton label="Refresh live catalog" variant="quiet" compact icon="refresh-outline" onPress={() => { void loadCatalog(); }} />
-            {catalogError ? <Notice>{catalogError}. Check the API connection.</Notice> : null}
-            {catalogError && <AppButton label="Retry" variant="secondary" compact onPress={() => { void loadCatalog(); }} />}
-            {catalogLoading && <AppText color={colors.muted}>Loading services...</AppText>}
-            <SearchField value={search} onChangeText={setSearch} placeholder="Search categories or services" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 20 }} contentContainerStyle={{ gap: 9 }}>
-              {['All', ...categories.map((item) => item.name)].map((item) => (
-                <Pressable key={item} onPress={() => setCategory(item)} style={[styles.filter, category === item && styles.filterActive]}>
-                  <AppText size={12} weight="semibold" color={category === item ? '#FFFFFF' : colors.inkSoft}>{item}</AppText>
+            <PageHeader kicker="Service discovery" title="Browse services" description="Search by problem or service, then review details and pricing." actionIcon="refresh-outline" onAction={reload} />
+            <SearchField value={query} onChangeText={setQuery} placeholder="Search cleaning, plumbing, AC..." />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 18 }} contentContainerStyle={{ gap: 9 }}>
+              <Pressable onPress={() => setCategoryId(null)} style={[styles.filter, !categoryId && styles.filterActive]}>
+                <AppText size={12} weight="semibold" color={!categoryId ? '#FFFFFF' : colors.inkSoft}>All</AppText>
+              </Pressable>
+              {categories.map((category) => (
+                <Pressable key={category.id} onPress={() => setCategoryId(category.id)} style={[styles.filter, categoryId === category.id && styles.filterActive]}>
+                  <AppText size={12} weight="semibold" color={categoryId === category.id ? '#FFFFFF' : colors.inkSoft}>{category.name}</AppText>
                 </Pressable>
               ))}
             </ScrollView>
-            <AppText color={colors.muted} size={12} style={{ marginBottom: 13 }}>{filtered.length} service{filtered.length === 1 ? '' : 's'} shown</AppText>
-            {filtered.length ? filtered.map((service) => <ServiceItem key={service.id} service={service} onPress={() => openService(service)} />) : (
-              <SurfaceCard><AppText color={colors.inkSoft}>No matches. Change your search or category.</AppText></SurfaceCard>
-            )}
+            <View style={styles.inlineBetween}>
+              <AppText size={12} color={colors.inkSoft}>{selectedCategory?.name ?? 'All categories'} · {displayed.length} result{displayed.length === 1 ? '' : 's'}</AppText>
+              <Pressable style={styles.savedToggle} onPress={() => setFavoritesOnly(!favoritesOnly)} accessibilityRole="button">
+                <Icon name={favoritesOnly ? 'heart' : 'heart-outline'} size={17} color={favoritesOnly ? colors.danger : colors.primary} />
+                <AppText size={12} color={colors.primary} weight="semibold">{favoritesOnly ? 'Saved only' : 'Saved'}</AppText>
+              </Pressable>
+            </View>
+            <View style={styles.sortRow}>
+              {([
+                { id: 'name', label: 'A to Z' },
+                { id: 'price-low', label: 'Price: low' },
+                { id: 'price-high', label: 'Price: high' },
+              ] as const).map((mode) => (
+                <Pressable key={mode.id} accessibilityRole="button" accessibilityState={{ selected: sort === mode.id }}
+                  style={[styles.sortChip, sort === mode.id && styles.sortActive]} onPress={() => setSort(mode.id)}>
+                  <AppText size={12} weight="semibold" color={sort === mode.id ? colors.primary : colors.muted}>{mode.label}</AppText>
+                </Pressable>
+              ))}
+            </View>
+            {error && <Notice>{error}. Swipe down or use refresh to retry.</Notice>}
+            {loading && <AppText color={colors.muted}>Loading live catalog...</AppText>}
+            {renderServices(displayed)}
+            {!loading && !error && displayed.length === 0 &&
+              <EmptyState icon={favoritesOnly ? 'heart-outline' : 'search-outline'} title="No matching services"
+                detail={favoritesOnly ? 'Save services using the heart icon, or show all services.' : 'Try another keyword or category.'}
+                action="Clear filters" onAction={() => { setQuery(''); setCategoryId(null); setFavoritesOnly(false); }} />}
+            <Notice>Availability and final service costs are confirmed only after live booking workflows are implemented.</Notice>
           </>
         ) : tab === 'bookings' ? (
           <>
-            <PageHeader kicker="Your activity" title="My bookings" description="Draft requests saved in this local demo." />
-            {drafts.length === 0 ? (
-              <SurfaceCard style={styles.empty}>
-                <View style={styles.emptyIcon}><Icon name="calendar-outline" size={33} color={colors.primary} /></View>
-                <AppText weight="bold" size={19}>No requests yet</AppText>
-                <AppText color={colors.inkSoft} size={13} style={{ textAlign: 'center', lineHeight: 20, marginVertical: 12 }}>Browse the current catalog to create a local booking preview.</AppText>
-                <AppButton label="Explore services" onPress={() => navigate('explore')} compact />
-              </SurfaceCard>
-            ) : drafts.map((draft) => (
-              <SurfaceCard key={draft.id}>
-                <View style={styles.horizontal}>
-                  <Badge label="Local draft" tone="amber" />
-                  <AppText color={colors.muted} size={11}>{draft.id.slice(-6)}</AppText>
-                </View>
-                <AppText weight="bold" size={17} style={{ marginTop: 13 }}>{draft.service}</AppText>
-                <AppText color={colors.inkSoft} size={12} style={{ marginTop: 7 }}>{draft.time}</AppText>
-                <AppText color={colors.muted} size={12} style={{ marginTop: 4 }}>{draft.address}</AppText>
-                <Pressable onPress={() => setDrafts((list) => list.filter((item) => item.id !== draft.id))} style={{ marginTop: 15 }}>
-                  <AppText color={colors.danger} size={12} weight="semibold">Remove draft</AppText>
-                </Pressable>
-              </SurfaceCard>
-            ))}
-            <Notice>Drafts are held in memory only and disappear when the app restarts.</Notice>
+            <PageHeader kicker="Requests" title="My request drafts" description="Review or edit requests prepared during this app session." />
+            <Notice>Drafts are not bookings. No service provider will be notified or charged.</Notice>
+            {drafts.length === 0 && <EmptyState icon="document-text-outline" title="No drafts yet"
+              detail="Choose a service, fill in the request form, and save a preview here."
+              action="Browse services" onAction={() => explore()} />}
+            {drafts.map((draft) => {
+              const available = services.some((item) => item.id === draft.serviceId);
+              return (
+                <SurfaceCard key={draft.id}>
+                  <View style={styles.inlineBetween}><Badge label="Local draft" tone="amber" /><AppText color={colors.muted} size={11}>{draft.id.slice(-6)}</AppText></View>
+                  <AppText weight="bold" size={17} style={{ marginTop: 15 }}>{draft.serviceName}</AppText>
+                  <View style={styles.rowIcon}><Icon name="calendar-outline" color={colors.primary} size={17} /><AppText color={colors.inkSoft} size={13}>{formatPreferredSlot(draft)}</AppText></View>
+                  <View style={styles.rowIcon}><Icon name="location-outline" color={colors.muted} size={17} /><AppText color={colors.inkSoft} size={13} style={{ flex: 1 }}>{draft.address}</AppText></View>
+                  <View style={styles.separator} />
+                  <View style={styles.inlineBetween}><AppText weight="bold">{priceLabel(draft.basePricePaise)}</AppText><AppText color={colors.muted} size={11}>Captured from catalog at draft time</AppText></View>
+                  <View style={[styles.inlineBetween, { marginTop: 15, gap: 10 }]}>
+                    <View style={{ flex: 1 }}><AppButton variant="secondary" compact label={available ? 'Edit draft' : 'Service unavailable'} disabled={!available} onPress={() => resumeDraft(draft)} /></View>
+                    <Pressable style={styles.deleteDraft} onPress={() => setDrafts((items) => items.filter((item) => item.id !== draft.id))} accessibilityRole="button" accessibilityLabel="Delete local draft">
+                      <Icon name="trash-outline" color={colors.danger} size={20} />
+                    </Pressable>
+                  </View>
+                </SurfaceCard>
+              );
+            })}
+            <Notice>These drafts disappear when the app restarts or you sign out. Live booking history will replace this preview in a later phase.</Notice>
           </>
         ) : (
           <>
-            <PageHeader kicker="Account" title="Your profile" description="Personal settings and preferences will be connected after authentication." />
-            <SurfaceCard style={{ alignItems: 'center', paddingVertical: 28 }}>
-              <View style={styles.profileAvatar}><Icon name="person-outline" color={colors.primary} size={34} /></View>
-              <AppText weight="bold" size={19} style={{ marginTop: 14 }}>Guest preview</AppText>
-              <AppText size={12} color={colors.muted} style={{ marginTop: 5 }}>Sign-in arrives in Phase 04</AppText>
-            </SurfaceCard>
-            {[
-              { label: 'My addresses', icon: 'location-outline' as IconName },
-              { label: 'Payments', icon: 'wallet-outline' as IconName },
-              { label: 'Help & support', icon: 'help-circle-outline' as IconName },
-              { label: 'Privacy & security', icon: 'shield-checkmark-outline' as IconName },
-            ].map((item) => (
-              <View key={item.label} style={styles.menuItem}>
-                <Icon name={item.icon} color={colors.primary} size={20} />
-                <AppText weight="medium" style={{ flex: 1 }}>{item.label}</AppText>
-                <Badge label="Soon" tone="neutral" />
+            <PageHeader kicker="Your account" title="Profile & settings" description="Manage sign-in and explore account tools." />
+            <SurfaceCard style={styles.accountCard}>
+              <View style={styles.profileAvatar}><Icon name="person-outline" color={colors.primary} size={29} /></View>
+              <View style={{ flex: 1, gap: 7 }}>
+                <AppText weight="bold" size={18}>Customer account</AppText>
+                <AppText size={13} color={colors.inkSoft}>{user.phone}</AppText>
+                <Badge label="Phone verified" tone="teal" />
               </View>
+            </SurfaceCard>
+            <SectionHeading title="Your services" />
+            {([
+              { title: 'Saved services', icon: 'heart-outline', screen: 'favorites', sub: 'Your current shortlist' },
+              { title: 'Saved addresses', icon: 'location-outline', screen: 'addresses', sub: 'Coming in Phase 07' },
+              { title: 'Payment history', icon: 'card-outline', screen: 'payments', sub: 'Available after payments launch' },
+              { title: 'Help & FAQs', icon: 'help-circle-outline', screen: 'support', sub: 'Answers about this app' },
+              { title: 'Privacy and security', icon: 'shield-checkmark-outline', screen: 'privacy', sub: 'Data and session details' },
+            ] as { title: string; icon: IconName; screen: Screen; sub: string }[]).map((item) => (
+              <Pressable key={item.title} accessibilityRole="button" style={styles.profileRow} onPress={() => goToProfile(item.screen)}>
+                <View style={styles.profileIcon}><Icon name={item.icon} color={colors.primary} size={21} /></View>
+                <View style={{ flex: 1, gap: 5 }}>
+                  <AppText weight="semibold">{item.title}</AppText>
+                  <AppText color={colors.muted} size={12}>{item.sub}</AppText>
+                </View>
+                <Icon name="chevron-forward" color={colors.muted} size={18} />
+              </Pressable>
             ))}
-            <Notice>No personal information is collected or saved in this design preview.</Notice>
-            <AppButton label="Sign out" variant="secondary" icon="log-out-outline" onPress={() => { void logout(); }} />
+            <View style={{ marginTop: 19 }}><AppButton label="Sign out" icon="log-out-outline" variant="secondary" onPress={() => { void logout(); }} /></View>
+            <AppText size={11} color={colors.muted} style={{ textAlign: 'center', marginTop: 22 }}>Home Services · Customer UI Phase 06</AppText>
           </>
         )}
       </AppShell>
@@ -384,36 +548,50 @@ function PreviewApp() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  horizontal: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  welcomeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
-  avatar: { backgroundColor: colors.primaryLight, borderRadius: 15, height: 46, width: 46, alignItems: 'center', justifyContent: 'center' },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 13, marginBottom: 22 },
-  promo: { minHeight: 208, backgroundColor: colors.dark, borderRadius: radii.xl, padding: 24, flexDirection: 'row', marginBottom: 19, overflow: 'hidden' },
-  promoIcon: { width: 80, height: 80, borderWidth: 1, borderColor: '#42628A', borderRadius: 26, alignSelf: 'center', justifyContent: 'center', alignItems: 'center', marginLeft: 8, backgroundColor: '#223D68', transform: [{ rotate: '-13deg' }] },
-  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6, marginBottom: 11 },
-  category: { width: '33.333%', alignItems: 'center', gap: 9, paddingHorizontal: 6, paddingBottom: 22 },
-  categoryArt: { width: '100%', height: 76, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
-  serviceItem: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 },
-  serviceArt: { width: 66, height: 69, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  back: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 9, marginBottom: 23 },
-  detailHero: { minHeight: 200, alignItems: 'center', justifyContent: 'center', borderRadius: radii.xl, marginBottom: 21 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  detailLine: { marginTop: 7 },
-  formLabel: { marginBottom: 9, marginTop: 8 },
-  textArea: { minHeight: 86, padding: 16, textAlignVertical: 'top', borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginBottom: 20, color: colors.ink, fontSize: 14 },
-  slotRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 21 },
-  slot: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  slotActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  empty: { padding: 30, alignItems: 'center', marginTop: 14 },
-  emptyIcon: { width: 72, height: 72, borderRadius: 21, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-  profileAvatar: { width: 78, height: 78, borderRadius: 26, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 15, padding: 17, borderRadius: radii.md, backgroundColor: colors.surface, marginBottom: 9, borderWidth: 1, borderColor: colors.border },
-  filter: { paddingVertical: 11, paddingHorizontal: 16, borderRadius: 50, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  filterActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-});
-
 export default function App() {
-  return <MobileAuthGate role="CUSTOMER"><PreviewApp /></MobileAuthGate>;
+  return <MobileAuthGate role="CUSTOMER"><CustomerApp /></MobileAuthGate>;
 }
+
+const styles = StyleSheet.create({
+  homeTop: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  inlineBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  locationNote: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 17, marginBottom: 22 },
+  hero: { backgroundColor: colors.dark, borderRadius: radii.xl, padding: 23, flexDirection: 'row', alignItems: 'center', minHeight: 218, marginBottom: 18 },
+  heroSymbol: { width: 74, height: 84, backgroundColor: '#29436D', borderRadius: 23, alignItems: 'center', justifyContent: 'center', marginLeft: 8, transform: [{ rotate: '9deg' }] },
+  roundAction: { width: 45, height: 45, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  categories: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5, marginTop: 4, marginBottom: 5 },
+  categoryTile: { width: '33.333%', paddingHorizontal: 5, alignItems: 'center', gap: 9, marginBottom: 20, minHeight: 111 },
+  categoryIcon: { alignItems: 'center', justifyContent: 'center', width: '100%', height: 77, borderRadius: 18 },
+  serviceCard: { flexDirection: 'row', alignItems: 'center', padding: 13, gap: 6 },
+  serviceMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 13, minHeight: 94 },
+  serviceArt: { width: 72, height: 84, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  favoriteButton: { width: 35, height: 45, alignItems: 'center', justifyContent: 'center' },
+  back: { paddingVertical: 10, flexDirection: 'row', gap: 9, alignItems: 'center', marginBottom: 15 },
+  detailHero: { minHeight: 208, borderRadius: radii.xl, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  iconCircle: { width: 49, height: 49, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
+  separator: { height: 1, backgroundColor: colors.border, marginVertical: 17 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
+  stepNumber: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  days: { gap: 10, paddingBottom: 5 },
+  dayCard: { width: 61, height: 86, borderRadius: 15, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  dayCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 6 },
+  timeChip: { width: '48%', minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 13 },
+  timeChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  textArea: { minHeight: 96, textAlignVertical: 'top', borderColor: colors.border, borderWidth: 1, backgroundColor: colors.surface, borderRadius: radii.md, padding: 15, fontSize: 14, color: colors.ink, marginBottom: 18 },
+  emptyState: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 26, marginTop: 16 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight, marginBottom: 16 },
+  emptyText: { textAlign: 'center', lineHeight: 20, marginTop: 11, marginBottom: 17 },
+  filter: { paddingHorizontal: 15, paddingVertical: 11, borderRadius: 22, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+  filterActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  sortRow: { flexDirection: 'row', gap: 7, marginBottom: 17, marginTop: 12, flexWrap: 'wrap' },
+  sortChip: { borderColor: colors.border, borderWidth: 1, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  sortActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
+  savedToggle: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 9 },
+  rowIcon: { flexDirection: 'row', gap: 9, alignItems: 'center', marginTop: 11 },
+  deleteDraft: { height: 41, width: 41, borderRadius: 11, backgroundColor: colors.dangerLight, alignItems: 'center', justifyContent: 'center' },
+  accountCard: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 23 },
+  profileAvatar: { width: 71, height: 71, borderRadius: 23, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
+  profileRow: { minHeight: 75, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 15, flexDirection: 'row', gap: 13, alignItems: 'center', marginBottom: 9, padding: 14 },
+  profileIcon: { height: 44, width: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryLight },
+});

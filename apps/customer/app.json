@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Book trusted services.",
+    "name": "Home Services",
     "slug": "home-services-customer",
     "scheme": "homeservicescustomer",
     "version": "1.0.0",
@@ -14,7 +14,7 @@
       "package": "com.homeservicesplatform.customer"
     },
     "extra": {
-      "projectPhase": "01"
+      "projectPhase": "06"
     }
   }
 }

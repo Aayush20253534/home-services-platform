@@ -1,6 +1,6 @@
 {
   "name": "@home-services/customer",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "private": true,
   "main": "expo/AppEntry",
   "scripts": {
@@ -9,7 +9,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "build": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@home-services/design-tokens": "workspace:*",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "tsx": "^4.20.0"
   }
 }

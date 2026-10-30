@@ -13,10 +13,12 @@ test('catalog endpoints, admin proxy and integration tests exist', () => {
   ]) assert.ok(existsSync(path), path);
 });
 test('customer catalog has no hard-coded service database', () => {
-  const customer = readFileSync('apps/customer/App.tsx', 'utf8');
-  assert.match(customer, /fetch\(.*catalog\/categories/);
-  assert.match(customer, /catalog\/services/);
-  assert.doesNotMatch(customer, /const services: Service\[\] = \[/);
+  const app = readFileSync('apps/customer/App.tsx', 'utf8');
+  const catalog = readFileSync('apps/customer/src/catalog.ts', 'utf8');
+  assert.match(catalog, /fetch\(.*catalog\/categories/);
+  assert.match(catalog, /catalog\/services/);
+  assert.match(app, /fetchCatalog/);
+  assert.doesNotMatch(app, /const services: Service\[\] = \[/);
 });
 test('seed does not overwrite admin catalog edits', () => {
   const seed = readFileSync('packages/database/prisma/seed.ts', 'utf8');
