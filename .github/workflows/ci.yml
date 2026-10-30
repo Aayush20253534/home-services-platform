@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# A new push supersedes older runs for the same branch.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   checks:
     runs-on: ubuntu-latest
