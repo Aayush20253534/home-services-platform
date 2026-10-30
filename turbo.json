@@ -20,7 +20,11 @@
         "^typecheck"
       ]
     },
-    "test": {},
+    "test": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
     "clean": {
       "cache": false
     }
