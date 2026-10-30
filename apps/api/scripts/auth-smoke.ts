@@ -2,9 +2,9 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
-import { DatabaseService } from '../src/database/database.service';
-import { OtpSender } from '../src/auth/otp.sender';
+import { AppModule } from '../dist/app.module.js';
+import { DatabaseService } from '../dist/database/database.service.js';
+import { OtpSender } from '../dist/auth/otp.sender.js';
 
 async function main() {
   const app = await NestFactory.create(AppModule, { logger: false });
@@ -50,7 +50,8 @@ async function main() {
   }
 
   try {
-    assert.equal((await call('/auth/me')).status, 401);
+    const unauthenticated = await call('/auth/me');
+    assert.equal(unauthenticated.status, 401, JSON.stringify(unauthenticated));
     assert.equal((await call('/health')).status, 200);
     const customer = await logIn(customerPhone, 'CUSTOMER');
     assert.equal((await call('/auth/me', undefined, customer.token)).status, 200);

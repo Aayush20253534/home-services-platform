@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test src/*.spec.ts",
-    "test:integration": "tsx scripts/auth-smoke.ts"
+    "test:integration": "pnpm build && tsx scripts/auth-smoke.ts"
   },
   "dependencies": {
     "@home-services/database": "workspace:*",
