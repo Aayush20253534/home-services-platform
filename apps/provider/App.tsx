@@ -305,6 +305,7 @@ function PreviewApp() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  smallIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   avatar: { width: 48, height: 48, backgroundColor: colors.primaryLight, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   availability: { borderRadius: radii.xl, backgroundColor: colors.dark, padding: 20, flexDirection: 'row', gap: 12, alignItems: 'center' },
