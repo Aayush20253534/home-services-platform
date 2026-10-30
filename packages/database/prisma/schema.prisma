@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum PricingType {
+  FIXED
+  INSPECTION
+}
+
+enum BookingStatus {
+  DRAFT
+  REQUESTED
+  OFFERED
+  ASSIGNED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id              String               @id @default(uuid()) @db.Uuid
+  phone           String?              @unique @db.VarChar(20)
+  email           String?              @unique @db.VarChar(254)
+  role            UserRole             @default(CUSTOMER)
+  createdAt       DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime             @updatedAt @db.Timestamptz(6)
+  customerProfile CustomerProfile?
+  providerProfile ProviderProfile?
+  addresses       Address[]
+  bookings        Booking[]            @relation("CustomerBookings")
+  statusEvents    BookingStatusEvent[] @relation("StatusActors")
+
+  @@index([role])
+}
+
+model CustomerProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @db.Uuid
+  displayName String   @db.VarChar(120)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProviderProfile {
+  id                 String               @id @default(uuid()) @db.Uuid
+  userId             String               @unique @db.Uuid
+  displayName        String               @db.VarChar(120)
+  verificationStatus VerificationStatus   @default(PENDING)
+  isOnline           Boolean              @default(false)
+  createdAt          DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime             @updatedAt @db.Timestamptz(6)
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills             ProviderSkill[]
+  availabilities     ProviderAvailability[]
+  serviceAreas       ProviderServiceArea[]
+  offers             AssignmentOffer[]
+  assignments        ProviderAssignment[]
+
+  @@index([verificationStatus, isOnline])
+}
+
+model ServiceCategory {
+  id        String    @id @default(uuid()) @db.Uuid
+  slug      String    @unique @db.VarChar(80)
+  name      String    @db.VarChar(120)
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  services  Service[]
+}
+
+model Service {
+  id              String         @id @default(uuid()) @db.Uuid
+  categoryId      String         @db.Uuid
+  slug            String         @unique @db.VarChar(120)
+  name            String         @db.VarChar(160)
+  description     String?        @db.Text
+  pricingType     PricingType    @default(FIXED)
+  basePricePaise  Int
+  durationMinutes Int
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(6)
+  category        ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  providers       ProviderSkill[]
+  bookings        Booking[]
+
+  @@index([categoryId, isActive])
+}
+
+model ProviderSkill {
+  providerId String          @db.Uuid
+  serviceId  String          @db.Uuid
+  approved   Boolean         @default(false)
+  createdAt  DateTime        @default(now()) @db.Timestamptz(6)
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service    Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([providerId, serviceId])
+  @@index([serviceId, approved])
+}
+
+model ProviderAvailability {
+  id         String          @id @default(uuid()) @db.Uuid
+  providerId String          @db.Uuid
+  weekday    Int
+  startTime  String          @db.VarChar(5)
+  endTime    String          @db.VarChar(5)
+  timezone   String          @default("Asia/Kolkata") @db.VarChar(64)
+  isActive   Boolean         @default(true)
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, weekday, startTime])
+  @@index([providerId, isActive])
+}
+
+model ProviderServiceArea {
+  id         String          @id @default(uuid()) @db.Uuid
+  providerId String          @db.Uuid
+  label      String          @db.VarChar(120)
+  latitude   Decimal         @db.Decimal(9, 6)
+  longitude  Decimal         @db.Decimal(9, 6)
+  radiusKm   Int             @default(10)
+  isActive   Boolean         @default(true)
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, isActive])
+}
+
+model Address {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  label       String    @db.VarChar(60)
+  line1       String    @db.VarChar(255)
+  line2       String?   @db.VarChar(255)
+  city        String    @db.VarChar(120)
+  state       String    @db.VarChar(120)
+  postalCode  String    @db.VarChar(12)
+  latitude    Decimal   @db.Decimal(9, 6)
+  longitude   Decimal   @db.Decimal(9, 6)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  bookings    Booking[]
+
+  @@index([userId])
+  @@index([city])
+}
+
+model Booking {
+  id                  String               @id @default(uuid()) @db.Uuid
+  customerId          String               @db.Uuid
+  serviceId           String               @db.Uuid
+  addressId           String               @db.Uuid
+  status              BookingStatus        @default(REQUESTED)
+  scheduledFor        DateTime             @db.Timestamptz(6)
+  problemDescription  String?              @db.Text
+  estimatedPricePaise Int
+  finalPricePaise     Int?
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  customer            User                 @relation("CustomerBookings", fields: [customerId], references: [id], onDelete: Restrict)
+  service             Service              @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  address             Address              @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  statusEvents        BookingStatusEvent[]
+  offers              AssignmentOffer[]
+  assignment          ProviderAssignment?
+  payments            Payment[]
+
+  @@index([customerId, createdAt])
+  @@index([status, scheduledFor])
+  @@index([serviceId])
+  @@index([addressId])
+}
+
+model BookingStatusEvent {
+  id              String        @id @default(uuid()) @db.Uuid
+  bookingId       String        @db.Uuid
+  actorUserId     String?       @db.Uuid
+  fromStatus      BookingStatus?
+  toStatus        BookingStatus
+  reason          String?       @db.VarChar(500)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor           User?         @relation("StatusActors", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, createdAt])
+}
+
+model AssignmentOffer {
+  id          String          @id @default(uuid()) @db.Uuid
+  bookingId   String          @db.Uuid
+  providerId  String          @db.Uuid
+  status      OfferStatus     @default(PENDING)
+  expiresAt   DateTime        @db.Timestamptz(6)
+  respondedAt DateTime?       @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(6)
+  booking     Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId, status])
+  @@index([providerId, status])
+  @@index([expiresAt, status])
+}
+
+model ProviderAssignment {
+  id          String          @id @default(uuid()) @db.Uuid
+  bookingId   String          @unique @db.Uuid
+  providerId  String          @db.Uuid
+  confirmedAt DateTime        @default(now()) @db.Timestamptz(6)
+  completedAt DateTime?       @db.Timestamptz(6)
+  booking     Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  @@index([providerId])
+}
+
+model Payment {
+  id               String        @id @default(uuid()) @db.Uuid
+  bookingId        String        @db.Uuid
+  amountPaise      Int
+  currency         String        @default("INR") @db.VarChar(3)
+  status           PaymentStatus @default(PENDING)
+  gateway          String        @db.VarChar(50)
+  gatewayPaymentId String?       @unique @db.VarChar(150)
+  createdAt        DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime      @updatedAt @db.Timestamptz(6)
+  booking          Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId, status])
+}
