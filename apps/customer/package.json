@@ -4,8 +4,8 @@
   "private": true,
   "main": "expo/AppEntry",
   "scripts": {
-    "dev": "expo start",
-    "start": "expo start",
+    "dev": "expo start --port 8081",
+    "start": "expo start --port 8081",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "build": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",

@@ -20,6 +20,7 @@
         "^typecheck"
       ]
     },
+    "test": {},
     "clean": {
       "cache": false
     }
