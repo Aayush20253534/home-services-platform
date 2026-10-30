@@ -69,6 +69,8 @@ apps/
   api/          NestJS REST API
 packages/
   config/       Shared TypeScript compiler configuration
+  design-tokens/ Shared mobile/web theme and CSS variables
+  mobile-ui/    Reusable React Native interface components
   contracts/    Shared TypeScript API/domain types
   validation/   Shared validation helpers
 docs/
@@ -79,12 +81,12 @@ docs/
 ## Phase status
 
 - **Phase 01:** Monorepo, four application shells, local infrastructure, lint/typecheck/tests, CI, and documentation.
-- **Phase 02:** Shared design system and functional screen designs.
+- **Phase 02:** Implemented shared design tokens, reusable mobile components, interactive customer/provider screen previews, and six navigable admin sections with demo filtering and dialogs.
 - **Phase 03:** PostgreSQL data model, Prisma migrations, PostGIS usage.
 - **Phase 04:** Authentication and role-based permissions.
 
-See `docs/phases/01-foundation.md` for detailed acceptance criteria. This is scaffolding, not yet a booking marketplace.
+See `docs/phases/01-foundation.md`, `docs/phases/02-design-system.md` and `docs/architecture/design-system.md` for details. **All currently displayed booking/provider/customer records, prices, counts and earnings are illustrative.** Customer drafts, provider availability and admin service creation exist only as temporary UI state; they are not persisted or submitted. Backend integration begins in later phases.
 
 ## Security
 
-Do not commit `.env` files, API keys, customer information, provider identity documents, or payment credentials. The admin and API shells are intentionally unauthenticated in Phase 01 and must not be exposed as production business applications until Phase 04 authorization and subsequent security work are complete.
+Do not commit `.env` files, API keys, customer information, provider identity documents, or payment credentials. The admin and API shells remain unauthenticated after Phase 02 and must not be exposed as production business applications until Phase 04 authorization and subsequent security work are complete.
