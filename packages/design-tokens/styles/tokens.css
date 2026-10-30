@@ -1,0 +1,23 @@
+:root {
+  --ink: #17243f;
+  --ink-soft: #485b75;
+  --muted: #8090a6;
+  --background: #f5f7fb;
+  --surface: #ffffff;
+  --surface-alt: #eef2f8;
+  --border: #e5eaf2;
+  --primary: #3956e8;
+  --primary-light: #eef1ff;
+  --teal: #079f91;
+  --teal-light: #e5f8f3;
+  --amber: #d58b19;
+  --amber-light: #fff5e0;
+  --danger: #ce4962;
+  --danger-light: #fff0f2;
+  --dark: #101f3f;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --shadow-card: 0 12px 34px rgb(26 40 69 / 5%);
+}
