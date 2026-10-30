@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Archive, CheckCircle2, CirclePlus, FolderPlus, Pencil, RotateCcw, RefreshCw, Search, Wrench } from 'lucide-react';
+import { Archive, CheckCircle2, CirclePlus, FolderPlus, Pencil, RotateCcw, RefreshCw, Search } from 'lucide-react';
 import { DetailDialog, PageHeading, StatusPill } from '../../../components/ui';
 import { type CatalogCategory, type CatalogService, formatRupees, rupeesToPaise, toSlug } from '../../../lib/catalog';
 

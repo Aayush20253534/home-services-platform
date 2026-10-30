@@ -312,6 +312,7 @@ function PreviewApp() {
         ) : tab === 'explore' ? (
           <>
             <PageHeader kicker="Service catalog" title="Explore services" description="Find a solution for your home." />
+            <AppButton label="Refresh live catalog" variant="quiet" compact icon="refresh-outline" onPress={() => { void loadCatalog(); }} />
             {catalogError ? <Notice>{catalogError}. Check the API connection.</Notice> : null}
             {catalogError && <AppButton label="Retry" variant="secondary" compact onPress={() => { void loadCatalog(); }} />}
             {catalogLoading && <AppText color={colors.muted}>Loading services...</AppText>}
