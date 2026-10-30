@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Book trusted services.",
+    "slug": "home-services-customer",
+    "scheme": "homeservicescustomer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.homeservicesplatform.customer"
+    },
+    "android": {
+      "package": "com.homeservicesplatform.customer"
+    },
+    "extra": {
+      "projectPhase": "01"
+    }
+  }
+}

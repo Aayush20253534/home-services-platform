@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Your work, organized.",
+    "slug": "home-services-provider",
+    "scheme": "homeservicesprovider",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.homeservicesplatform.provider"
+    },
+    "android": {
+      "package": "com.homeservicesplatform.provider"
+    },
+    "extra": {
+      "projectPhase": "01"
+    }
+  }
+}
