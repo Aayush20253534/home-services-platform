@@ -11,7 +11,23 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: home_services
+          POSTGRES_PASSWORD: localdevonly
+          POSTGRES_DB: home_services
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U home_services -d home_services"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://home_services:localdevonly@localhost:5432/home_services?schema=public
 
     steps:
       - name: Checkout
@@ -29,6 +45,21 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Validate schema
+        run: pnpm db:validate
+
+      - name: Apply migrations to PostGIS
+        run: pnpm db:migrate:deploy
+
+      - name: Seed example service catalog
+        run: pnpm db:seed
+
+      - name: Verify database and spatial queries
+        run: pnpm db:verify
 
       - name: Lint
         run: pnpm lint

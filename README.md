@@ -33,7 +33,7 @@ pnpm dev
 
 On Windows PowerShell replace `cp .env.example .env` with `Copy-Item .env.example .env`. The API listens at `http://localhost:4000/health`; the admin website is at `http://localhost:3000`. Expo prints QR codes or emulator links for both mobile applications. Both Expo projects are independent and can be launched separately.
 
-The API's `/health` endpoint is a **process liveness** check, not a database or Redis readiness check. Database models and connectivity are part of Phase 03. Authentication is part of Phase 04. No production credentials are included.
+The API's `/health` endpoint is a **process liveness** check; `/health/ready` checks PostgreSQL and PostGIS. The initial database and migrations are implemented in Phase 03. Authentication is part of Phase 04. No production credentials are included.
 
 ## Local infrastructure
 
@@ -46,6 +46,18 @@ docker compose down
 PostgreSQL (with PostGIS available for future migrations) runs on port 5432; Redis on 6379. Credentials in `compose.yaml` are local-development-only examples and must not be reused in a deployed system.
 
 For physical mobile devices, use your computer's LAN IP instead of `localhost` when configuring a future `EXPO_PUBLIC_API_URL`. Android emulator uses `10.0.2.2` for the host machine.
+
+## Initialize the database (Phase 03)
+
+```bash
+pnpm db:generate
+pnpm db:validate
+pnpm db:migrate:deploy
+pnpm db:seed
+pnpm db:verify
+```
+
+The seed adds six example categories and services, no customer/provider accounts or transactions. For future development-only schema changes use `pnpm db:migrate:dev`. See `docs/phases/03-database.md`.
 
 ## Checks
 
@@ -71,6 +83,7 @@ packages/
   config/       Shared TypeScript compiler configuration
   design-tokens/ Shared mobile/web theme and CSS variables
   mobile-ui/    Reusable React Native interface components
+  database/     Prisma schema, migrations, seed and spatial queries
   contracts/    Shared TypeScript API/domain types
   validation/   Shared validation helpers
 docs/
@@ -82,11 +95,11 @@ docs/
 
 - **Phase 01:** Monorepo, four application shells, local infrastructure, lint/typecheck/tests, CI, and documentation.
 - **Phase 02:** Implemented shared design tokens, reusable mobile components, interactive customer/provider screen previews, and six navigable admin sections with demo filtering and dialogs.
-- **Phase 03:** PostgreSQL data model, Prisma migrations, PostGIS usage.
+- **Phase 03:** Prisma relational schema, versioned PostGIS migration, database readiness, seeded catalog, and spatial verification.
 - **Phase 04:** Authentication and role-based permissions.
 
-See `docs/phases/01-foundation.md`, `docs/phases/02-design-system.md` and `docs/architecture/design-system.md` for details. **All currently displayed booking/provider/customer records, prices, counts and earnings are illustrative.** Customer drafts, provider availability and admin service creation exist only as temporary UI state; they are not persisted or submitted. Backend integration begins in later phases.
+See `docs/phases/01-foundation.md`, `docs/phases/02-design-system.md`, `docs/phases/03-database.md`, and `docs/architecture/design-system.md` for details. **All currently displayed booking/provider/customer records, prices, counts and earnings are illustrative.** Customer drafts, provider availability and admin service creation exist only as temporary UI state; they are not persisted or submitted. Backend integration begins in later phases.
 
 ## Security
 
-Do not commit `.env` files, API keys, customer information, provider identity documents, or payment credentials. The admin and API shells remain unauthenticated after Phase 02 and must not be exposed as production business applications until Phase 04 authorization and subsequent security work are complete.
+Do not commit `.env` files, API keys, customer information, provider identity documents, or payment credentials. The admin and API shells remain unauthenticated after Phase 03 and must not be exposed as production business applications until Phase 04 authorization and subsequent security work are complete.
