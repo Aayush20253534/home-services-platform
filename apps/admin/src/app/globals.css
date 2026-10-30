@@ -1,0 +1,17 @@
+* { box-sizing: border-box; }
+:root { color-scheme: light; font-family: Arial, Helvetica, sans-serif; background: #f5f7fb; color: #14233b; }
+body { margin: 0; }
+.shell { max-width: 1120px; margin: 0 auto; padding: 32px 28px 80px; }
+.masthead { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.13em; font-weight: 700; color: #54708e; }
+.pill { border: 1px solid #d2e2f6; background: #eaf3ff; border-radius: 99px; padding: 8px 13px; font-size: 12px; color: #245593; }
+.hero { margin-top: 88px; max-width: 720px; }
+h1 { font-size: clamp(36px, 5.5vw, 62px); line-height: 1.12; letter-spacing: -0.05em; margin: 16px 0 20px; }
+.hero p { max-width: 590px; line-height: 1.7; font-size: 17px; color: #536780; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 56px; }
+.tile { border: 1px solid #e0e9f4; border-radius: 18px; padding: 28px; background: #fff; box-shadow: 0 10px 30px rgba(24, 50, 90, 0.04); }
+.tile-label { font-size: 12px; color: #4b73a0; font-weight: 700; }
+.tile h2 { font-size: 22px; margin: 20px 0 8px; }
+.tile p { font-size: 14px; line-height: 1.6; color: #66788f; margin: 0; }
+footer { margin-top: 48px; font-size: 12px; color: #66788f; }
+@media (max-width: 720px) { .shell { padding: 24px 16px 56px; } .hero { margin-top: 64px; } .grid { grid-template-columns: 1fr; } }
