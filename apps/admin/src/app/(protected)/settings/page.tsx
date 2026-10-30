@@ -1,5 +1,5 @@
 import { Bell, Database, LockKeyhole, MapPin, ShieldCheck, SlidersHorizontal } from 'lucide-react';
-import { DemoWarning, PageHeading } from '../../components/ui';
+import { DemoWarning, PageHeading } from '../../../components/ui';
 
 const planned = [
   { icon: ShieldCheck, name: 'Role permissions', description: 'Admin, customer and provider permissions, login sessions and restricted data access. Phase 04.' },

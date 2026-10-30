@@ -1,0 +1,25 @@
+{
+  "name": "@home-services/mobile-auth",
+  "version": "0.4.0",
+  "private": true,
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@home-services/mobile-ui": "workspace:*",
+    "@home-services/design-tokens": "workspace:*",
+    "expo-secure-store": "~57.0.4"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "react": "19.2.3",
+    "react-native": "0.86.0",
+    "typescript": "^5.9.0"
+  }
+}

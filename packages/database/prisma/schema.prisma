@@ -64,6 +64,7 @@ model User {
   addresses       Address[]
   bookings        Booking[]            @relation("CustomerBookings")
   statusEvents    BookingStatusEvent[] @relation("StatusActors")
+  sessions        AuthSession[]
 
   @@index([role])
 }
@@ -265,4 +266,33 @@ model Payment {
   booking          Booking       @relation(fields: [bookingId], references: [id], onDelete: Restrict)
 
   @@index([bookingId, status])
+}
+
+model AuthOtpChallenge {
+  id           String    @id @default(uuid()) @db.Uuid
+  phone        String    @db.VarChar(20)
+  role         UserRole
+  codeHash     String    @db.VarChar(64)
+  requesterHash String   @db.VarChar(64)
+  expiresAt    DateTime  @db.Timestamptz(6)
+  attempts     Int       @default(0)
+  consumedAt   DateTime? @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([phone, createdAt])
+  @@index([requesterHash, createdAt])
+}
+
+model AuthSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  refreshHash  String    @db.VarChar(64)
+  expiresAt    DateTime  @db.Timestamptz(6)
+  revokedAt    DateTime? @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
 }

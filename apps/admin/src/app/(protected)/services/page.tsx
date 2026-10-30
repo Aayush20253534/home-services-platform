@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { Droplets, Paintbrush, Plus, Snowflake, Sparkles, Wrench, Zap, type LucideIcon } from 'lucide-react';
-import { services } from '../../components/mock-data';
-import { DemoWarning, DetailDialog, PageHeading } from '../../components/ui';
+import { services } from '../../../components/mock-data';
+import { DemoWarning, DetailDialog, PageHeading } from '../../../components/ui';
 
 const icons: Record<string, LucideIcon> = { sparkles: Sparkles, zap: Zap, droplets: Droplets, snowflake: Snowflake, wrench: Wrench, paintbrush: Paintbrush };
 const categories = ['All', ...new Set(services.map((service) => service.category))];

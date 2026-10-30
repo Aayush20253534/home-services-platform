@@ -1,6 +1,6 @@
 {
   "name": "@home-services/provider",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
   "main": "expo/AppEntry",
   "scripts": {
@@ -17,7 +17,8 @@
     "@expo/vector-icons": "^15.0.0",
     "expo": "~57.0.0",
     "react": "19.2.3",
-    "react-native": "0.86.0"
+    "react-native": "0.86.0",
+    "@home-services/mobile-auth": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",

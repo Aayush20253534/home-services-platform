@@ -22,7 +22,8 @@
     "db:migrate:status": "pnpm --filter @home-services/database db:migrate:status",
     "db:seed": "pnpm --filter @home-services/database db:seed",
     "db:verify": "pnpm --filter @home-services/database db:verify",
-    "db:studio": "pnpm --filter @home-services/database db:studio"
+    "db:studio": "pnpm --filter @home-services/database db:studio",
+    "db:provision-admin": "pnpm --filter @home-services/database db:provision-admin"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

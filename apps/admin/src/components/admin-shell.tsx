@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ArrowUpRight, Bell, CalendarCheck, ChevronDown, Grid2X2,
-  LayoutDashboard, LifeBuoy, Menu, Settings2, ShieldCheck, Users, Wrench, X,
+  LayoutDashboard, LifeBuoy, LogOut, Menu, Settings2, ShieldCheck, Users, Wrench, X,
   type LucideIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -44,6 +44,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="sidebar-bottom">
           <div className="help-panel"><LifeBuoy size={19} /><b>Need help?</b><p>Support workflows are included in later phases.</p></div>
           <div className="sidebar-user"><span className="user-avatar">AD</span><span><b>Admin preview</b><small>Guest demo · Phase 02</small></span><ArrowUpRight size={16} /></div>
+          <button className="sidebar-logout" onClick={() => { void fetch('/api/auth/logout', { method: 'POST' }).finally(() => { window.location.assign('/login'); }); }}><LogOut size={16}/>Sign out</button>
         </div>
       </aside>
       <div className="workspace-body">

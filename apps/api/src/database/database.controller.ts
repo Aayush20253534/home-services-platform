@@ -1,10 +1,12 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { Public } from '../auth/auth.decorators';
 import { DatabaseService } from './database.service';
 
 @Controller('health')
 export class DatabaseController {
   constructor(private readonly database: DatabaseService) {}
 
+  @Public()
   @Get('ready')
   async readiness(): Promise<{ status: 'ready'; database: 'postgresql'; spatial: 'postgis' }> {
     try {

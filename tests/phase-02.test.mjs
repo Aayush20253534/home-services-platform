@@ -15,7 +15,7 @@ test('Phase 02 includes shared design system and mobile library', () => {
 
 test('all six admin pages are present and clearly labeled', () => {
   for (const path of ['page.tsx', 'bookings/page.tsx', 'providers/page.tsx', 'customers/page.tsx', 'services/page.tsx', 'settings/page.tsx']) {
-    assert.ok(existsSync(`apps/admin/src/app/${path}`), path);
+    assert.ok(existsSync(`apps/admin/src/app/(protected)/${path}`), path);
   }
   assert.match(read('apps/admin/src/components/admin-shell.tsx'), /UI Demo/);
   assert.match(read('apps/admin/src/components/mock-data.ts'), /Fictional demonstration data/);

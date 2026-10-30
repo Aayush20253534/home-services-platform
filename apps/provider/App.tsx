@@ -1,3 +1,4 @@
+import { MobileAuthGate, useMobileAuth } from '@home-services/mobile-auth';
 import { useState } from 'react';
 import { Pressable, StatusBar, StyleSheet, Switch, View } from 'react-native';
 import {
@@ -90,7 +91,8 @@ function MiniStat({ label, value, icon, tint }: { label: string; value: string; 
   );
 }
 
-export default function App() {
+function PreviewApp() {
+  const { logout } = useMobileAuth();
   const [tab, setTab] = useState<ProviderTab>('dashboard');
   const [online, setOnline] = useState(false);
   const [jobFilter, setJobFilter] = useState<'All' | JobStatus>('All');
@@ -293,6 +295,7 @@ export default function App() {
               </View>
             ))}
             <Notice>Account verification and editable provider details arrive in Phases 04 and 09.</Notice>
+            <AppButton label="Sign out" variant="secondary" icon="log-out-outline" onPress={() => { void logout(); }} />
           </>
         )}
       </AppShell>
@@ -326,3 +329,7 @@ const styles = StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 23, paddingVertical: 9 },
   jobHero: { minHeight: 170, borderRadius: radii.xl, justifyContent: 'center', alignItems: 'center', marginBottom: 19 },
 });
+
+export default function App() {
+  return <MobileAuthGate role="PROVIDER"><PreviewApp /></MobileAuthGate>;
+}

@@ -16,7 +16,8 @@
     "build": "pnpm db:generate && tsc --project tsconfig.build.json",
     "typecheck": "pnpm db:generate && tsc --noEmit --project tsconfig.json",
     "test": "tsx --test src/*.test.ts",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "db:provision-admin": "tsx prisma/provision-admin.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",

@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { CalendarCheck, UserRoundCheck, Users } from 'lucide-react';
-import { customers, type Customer } from '../../components/mock-data';
-import { DemoWarning, DetailDialog, EmptyRows, PageHeading, Person, SearchBox, StatusPill } from '../../components/ui';
+import { customers, type Customer } from '../../../components/mock-data';
+import { DemoWarning, DetailDialog, EmptyRows, PageHeading, Person, SearchBox, StatusPill } from '../../../components/ui';
 
 export default function Customers() {
   const [query, setQuery] = useState('');

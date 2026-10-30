@@ -33,6 +33,12 @@ jobs:
           --health-retries 15
     env:
       DATABASE_URL: postgresql://home_services:localdevonly@localhost:5432/home_services?schema=public
+      AUTH_JWT_SECRET: github-actions-jwt-secret-71c982741ea7b640e02dca45
+      AUTH_OTP_SECRET: github-actions-otp-secret-c901662af1054bba0ad30ef0
+      AUTH_REFRESH_SECRET: github-actions-refresh-secret-7f48adf0ac03a66514ed
+      SMS_PROVIDER: dev-console
+      AUTH_DEV_OTP: 'true'
+      AUTH_API_URL: http://localhost:4000
 
     steps:
       - name: Checkout
@@ -77,6 +83,11 @@ jobs:
 
       - name: Unit and structure tests
         run: pnpm test
+
+      - name: Auth HTTP integration smoke
+        run: |
+          pnpm --filter @home-services/database build
+          pnpm --filter @home-services/api test:integration
 
       - name: Build all apps
         run: pnpm build

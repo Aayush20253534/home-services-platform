@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, CalendarCheck, CircleCheck, Clock3, IndianRupee, Users, Wrench } from 'lucide-react';
-import { bookings } from '../components/mock-data';
-import { DemoWarning, Metric, PageHeading, Person, StatusPill } from '../components/ui';
+import { bookings } from '../../components/mock-data';
+import { DemoWarning, Metric, PageHeading, Person, StatusPill } from '../../components/ui';
 
 const weekly = [
   { day: 'Mon', value: 42 }, { day: 'Tue', value: 69 }, { day: 'Wed', value: 53 },

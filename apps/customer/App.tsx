@@ -1,3 +1,4 @@
+import { MobileAuthGate, useMobileAuth } from '@home-services/mobile-auth';
 import { useMemo, useState } from 'react';
 import {
   Pressable,
@@ -91,7 +92,8 @@ function CategoryTile({ item, onPress }: { item: (typeof categories)[number]; on
   );
 }
 
-export default function App() {
+function PreviewApp() {
+  const { logout } = useMobileAuth();
   const [tab, setTab] = useState<CustomerTab>('home');
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
@@ -324,6 +326,7 @@ export default function App() {
               </View>
             ))}
             <Notice>No personal information is collected or saved in this design preview.</Notice>
+            <AppButton label="Sign out" variant="secondary" icon="log-out-outline" onPress={() => { void logout(); }} />
           </>
         )}
       </AppShell>
@@ -360,3 +363,7 @@ const styles = StyleSheet.create({
   filter: { paddingVertical: 11, paddingHorizontal: 16, borderRadius: 50, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   filterActive: { backgroundColor: colors.primary, borderColor: colors.primary },
 });
+
+export default function App() {
+  return <MobileAuthGate role="CUSTOMER"><PreviewApp /></MobileAuthGate>;
+}

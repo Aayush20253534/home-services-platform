@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { CalendarCheck } from 'lucide-react';
-import { bookings, type Booking } from '../../components/mock-data';
-import { DemoWarning, DetailDialog, EmptyRows, PageHeading, Person, SearchBox, StatusPill } from '../../components/ui';
+import { bookings, type Booking } from '../../../components/mock-data';
+import { DemoWarning, DetailDialog, EmptyRows, PageHeading, Person, SearchBox, StatusPill } from '../../../components/ui';
 
 const filters = ['All', 'Pending', 'Assigned', 'In progress', 'Completed'] as const;
 

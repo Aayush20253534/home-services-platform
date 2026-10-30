@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { ShieldCheck, Users, Wrench } from 'lucide-react';
-import { providers, type Provider } from '../../components/mock-data';
-import { DemoWarning, DetailDialog, EmptyRows, PageHeading, Person, SearchBox, StatusPill } from '../../components/ui';
+import { providers, type Provider } from '../../../components/mock-data';
+import { DemoWarning, DetailDialog, EmptyRows, PageHeading, Person, SearchBox, StatusPill } from '../../../components/ui';
 
 const filters = ['All', 'Verified', 'Pending', 'Unavailable'] as const;
 

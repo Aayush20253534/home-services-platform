@@ -59,6 +59,18 @@ pnpm db:verify
 
 The seed adds six example categories and services, no customer/provider accounts or transactions. For future development-only schema changes use `pnpm db:migrate:dev`. See `docs/phases/03-database.md`.
 
+## Authentication (Phase 04)
+
+Copy `apps/customer/.env.example` to `apps/customer/.env` and `apps/provider/.env.example` to `apps/provider/.env`. Set each app's `EXPO_PUBLIC_API_URL` to the reachable backend URL.
+
+Add distinct random `AUTH_JWT_SECRET`, `AUTH_OTP_SECRET`, and `AUTH_REFRESH_SECRET` in the root server `.env` (at least 32 characters each). For local development `SMS_PROVIDER=dev-console` and `AUTH_DEV_OTP=true` sends no SMS and prints OTP codes only in the API terminal. Production must use a real SMS provider. Add an administrator using:
+
+```bash
+pnpm db:provision-admin +919876543210
+```
+
+The admin login is at `http://localhost:3000/login`. Admin registration is not publicly available; provisioned phones only. Detailed setup and endpoints: `docs/phases/04-authentication.md`.
+
 ## Checks
 
 ```bash
@@ -84,6 +96,7 @@ packages/
   design-tokens/ Shared mobile/web theme and CSS variables
   mobile-ui/    Reusable React Native interface components
   database/     Prisma schema, migrations, seed and spatial queries
+  mobile-auth/  Customer/provider phone OTP login and session storage
   contracts/    Shared TypeScript API/domain types
   validation/   Shared validation helpers
 docs/
@@ -96,10 +109,10 @@ docs/
 - **Phase 01:** Monorepo, four application shells, local infrastructure, lint/typecheck/tests, CI, and documentation.
 - **Phase 02:** Implemented shared design tokens, reusable mobile components, interactive customer/provider screen previews, and six navigable admin sections with demo filtering and dialogs.
 - **Phase 03:** Prisma relational schema, versioned PostGIS migration, database readiness, seeded catalog, and spatial verification.
-- **Phase 04:** Authentication and role-based permissions.
+- **Phase 04:** Implemented phone OTP, revocable sessions, role guards, admin provisioning, and protected mobile/web login screens.
 
-See `docs/phases/01-foundation.md`, `docs/phases/02-design-system.md`, `docs/phases/03-database.md`, and `docs/architecture/design-system.md` for details. **All currently displayed booking/provider/customer records, prices, counts and earnings are illustrative.** Customer drafts, provider availability and admin service creation exist only as temporary UI state; they are not persisted or submitted. Backend integration begins in later phases.
+See `docs/phases/01-foundation.md`, `docs/phases/02-design-system.md`, `docs/phases/03-database.md`, `docs/phases/04-authentication.md`, and `docs/architecture/design-system.md` for details. **All currently displayed booking/provider/customer records, prices, counts and earnings are illustrative.** Customer drafts, provider availability and admin service creation exist only as temporary UI state; they are not persisted or submitted. Backend integration begins in later phases.
 
 ## Security
 
-Do not commit `.env` files, API keys, customer information, provider identity documents, or payment credentials. The admin and API shells remain unauthenticated after Phase 03 and must not be exposed as production business applications until Phase 04 authorization and subsequent security work are complete.
+Do not commit `.env` files, API keys, customer information, provider identity documents, or payment credentials. Phase 04 protects the admin dashboard and API routes. Business-specific approval checks and live service APIs are implemented in later phases. and must not be exposed as production business applications until Phase 04 authorization and subsequent security work are complete.
