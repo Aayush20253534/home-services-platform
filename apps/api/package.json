@@ -17,12 +17,15 @@
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-express": "^11.1.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "@nestjs/jwt": "^11.0.0",
+    "@home-services/validation": "workspace:*"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@types/node": "^22.15.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "@types/express": "^5.0.0"
   }
 }
