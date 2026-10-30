@@ -110,6 +110,7 @@ docs/
 - **Phase 02:** Implemented shared design tokens, reusable mobile components, interactive customer/provider screen previews, and six navigable admin sections with demo filtering and dialogs.
 - **Phase 03:** Prisma relational schema, versioned PostGIS migration, database readiness, seeded catalog, and spatial verification.
 - **Phase 04:** Implemented phone OTP, revocable sessions, role guards, admin provisioning, and protected mobile/web login screens.
+- **Phase 05:** Live PostgreSQL categories/services, admin catalog create/edit/archive, and customer catalog API.
 
 See `docs/phases/01-foundation.md`, `docs/phases/02-design-system.md`, `docs/phases/03-database.md`, `docs/phases/04-authentication.md`, and `docs/architecture/design-system.md` for details. **All currently displayed booking/provider/customer records, prices, counts and earnings are illustrative.** Customer drafts, provider availability and admin service creation exist only as temporary UI state; they are not persisted or submitted. Backend integration begins in later phases.
 

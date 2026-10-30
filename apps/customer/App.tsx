@@ -1,5 +1,5 @@
 import { MobileAuthGate, useMobileAuth } from '@home-services/mobile-auth';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -43,23 +43,33 @@ const tabs: readonly TabDefinition<CustomerTab>[] = [
   { id: 'profile', title: 'Profile', icon: 'person-outline' },
 ];
 
-const categories: { name: string; icon: IconName; tint: string }[] = [
-  { name: 'Cleaning', icon: 'sparkles-outline', tint: '#E2F8F0' },
-  { name: 'Electrical', icon: 'flash-outline', tint: '#FFF1D9' },
-  { name: 'Plumbing', icon: 'water-outline', tint: '#E5F0FF' },
-  { name: 'AC Repair', icon: 'snow-outline', tint: '#F0E9FF' },
-  { name: 'Appliances', icon: 'construct-outline', tint: '#FFF0EE' },
-  { name: 'Painting', icon: 'color-palette-outline', tint: '#EDF2FD' },
-];
+type CategoryTileItem = { id: string; name: string; slug: string; icon: IconName; tint: string };
+type ApiCategory = { id: string; slug: string; name: string; isActive: boolean };
+type ApiService = {
+  id: string; slug: string; name: string; description: string | null;
+  basePricePaise: number; durationMinutes: number;
+  category: { id: string; slug: string; name: string };
+};
 
-const services: Service[] = [
-  { id: 'bathroom', name: 'Bathroom deep cleaning', category: 'Cleaning', icon: 'sparkles-outline', duration: '60–90 min', price: '₹799', description: 'Detailed cleaning of tiles, fixtures, floor and surfaces.', accent: '#DDF7EB' },
-  { id: 'electric', name: 'Electrical inspection', category: 'Electrical', icon: 'flash-outline', duration: '30–45 min', price: '₹249', description: 'Professional inspection of switches, sockets and wiring issues.', accent: '#FFF0D6' },
-  { id: 'tap', name: 'Tap & leakage check', category: 'Plumbing', icon: 'water-outline', duration: '30–60 min', price: '₹199', description: 'Locate common tap faults and minor plumbing issues.', accent: '#E4F0FF' },
-  { id: 'ac', name: 'AC service & inspection', category: 'AC Repair', icon: 'snow-outline', duration: '45–60 min', price: '₹499', description: 'Routine AC inspection with a service assessment.', accent: '#EDE9FF' },
-  { id: 'appliance', name: 'Appliance diagnosis', category: 'Appliances', icon: 'construct-outline', duration: '30–45 min', price: '₹299', description: 'Professional diagnosis for common household appliance issues.', accent: '#FFF0EE' },
-  { id: 'paint', name: 'Painting consultation', category: 'Painting', icon: 'color-palette-outline', duration: '30 min', price: '₹199', description: 'A professional consultation for repainting and surface preparation.', accent: '#EEF2FF' },
-];
+const categoryIcons: Record<string, { icon: IconName; tint: string; accent: string }> = {
+  cleaning: { icon: 'sparkles-outline', tint: '#E2F8F0', accent: '#DDF7EB' },
+  electrical: { icon: 'flash-outline', tint: '#FFF1D9', accent: '#FFF0D6' },
+  plumbing: { icon: 'water-outline', tint: '#E5F0FF', accent: '#E4F0FF' },
+  'ac-repair': { icon: 'snow-outline', tint: '#F0E9FF', accent: '#EDE9FF' },
+  appliances: { icon: 'construct-outline', tint: '#FFF0EE', accent: '#FFF0EE' },
+  painting: { icon: 'color-palette-outline', tint: '#EDF2FD', accent: '#EEF2FF' },
+};
+const defaultIcon = { icon: 'home-outline' as IconName, tint: '#EDF2FD', accent: '#EEF2FF' };
+function toDisplayService(item: ApiService): Service {
+  const style = categoryIcons[item.category.slug] ?? defaultIcon;
+  return {
+    id: item.id, name: item.name, category: item.category.name,
+    icon: style.icon, accent: style.accent,
+    duration: `${item.durationMinutes} min`,
+    price: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(item.basePricePaise / 100),
+    description: item.description || 'Professional home service',
+  };
+}
 
 type Draft = { id: string; service: string; address: string; time: string; details: string };
 
@@ -81,7 +91,7 @@ function ServiceItem({ service, onPress }: { service: Service; onPress: () => vo
   );
 }
 
-function CategoryTile({ item, onPress }: { item: (typeof categories)[number]; onPress: () => void }) {
+function CategoryTile({ item, onPress }: { item: CategoryTileItem; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.category} accessibilityRole="button">
       <View style={[styles.categoryArt, { backgroundColor: item.tint }]}>
@@ -94,6 +104,10 @@ function CategoryTile({ item, onPress }: { item: (typeof categories)[number]; on
 
 function PreviewApp() {
   const { logout } = useMobileAuth();
+  const [categories, setCategories] = useState<CategoryTileItem[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState('');
   const [tab, setTab] = useState<CustomerTab>('home');
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
@@ -105,13 +119,42 @@ function PreviewApp() {
   const [problem, setProblem] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([]);
 
+  const loadCatalog = useCallback(async () => {
+    setCatalogLoading(true); setCatalogError('');
+    try {
+      const api = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+      if (!api) throw new Error('EXPO_PUBLIC_API_URL is not configured');
+      const [categoriesResponse, servicesResponse] = await Promise.all([
+        fetch(`${api}/catalog/categories`),
+        fetch(`${api}/catalog/services?limit=100`),
+      ]);
+      if (!categoriesResponse.ok || !servicesResponse.ok) throw new Error('Service catalog is unavailable');
+      const [categoryData, serviceData]: [ApiCategory[], ApiService[]] = await Promise.all([
+        categoriesResponse.json(), servicesResponse.json(),
+      ]);
+      if (!Array.isArray(categoryData) || !Array.isArray(serviceData)) throw new Error('Invalid catalog response');
+      setCategories(categoryData.map((c) => ({
+        id: c.id, name: c.name, slug: c.slug,
+        icon: (categoryIcons[c.slug] ?? defaultIcon).icon,
+        tint: (categoryIcons[c.slug] ?? defaultIcon).tint,
+      })));
+      setServices(serviceData.map(toDisplayService));
+    } catch (error) {
+      setCategories([]); setServices([]);
+      setCatalogError(error instanceof Error ? error.message : 'Catalog loading failed');
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
+  useEffect(() => { void loadCatalog(); }, [loadCatalog]);
+
   const filtered = useMemo(() => {
     const query = search.toLowerCase().trim();
     return services.filter((service) =>
       (category === 'All' || service.category === category) &&
       (`${service.name} ${service.category} ${service.description}`).toLowerCase().includes(query),
     );
-  }, [category, search]);
+  }, [category, search, services]);
 
   function navigate(next: CustomerTab) {
     setSelected(null);
@@ -225,7 +268,7 @@ function PreviewApp() {
                     <AppText weight="bold" size={20}>{selected.price}</AppText>
                   </View>
                 </SurfaceCard>
-                <Notice>Services and prices are illustrative until the catalog is connected in later phases.</Notice>
+                <Notice>Service pricing comes from the live catalog. Booking submission is still a preview until Phase 08.</Notice>
                 <AppButton label="Choose a time" icon="calendar-outline" onPress={() => setBookingMode(true)} />
               </>
             )}
@@ -253,6 +296,9 @@ function PreviewApp() {
               <View style={styles.promoIcon}><Icon name="home-outline" size={43} color="#FFFFFF" /></View>
             </View>
             <SearchField value={search} onChangeText={(value) => { setSearch(value); setTab('explore'); }} placeholder="What needs fixing today?" />
+            {catalogError ? <Notice>{catalogError}. Check the API connection.</Notice> : null}
+            {catalogError && <AppButton label="Retry catalog" variant="secondary" compact onPress={() => { void loadCatalog(); }} />}
+            {catalogLoading && <AppText size={13} color={colors.muted}>Loading live catalog...</AppText>}
             <SectionHeading title="Browse by category" action="See all" onAction={() => navigate('explore')} />
             <View style={styles.categoriesGrid}>
               {categories.map((item) => (
@@ -261,11 +307,14 @@ function PreviewApp() {
             </View>
             <SectionHeading title="Popular services" action="View all" onAction={() => { setCategory('All'); navigate('explore'); }} />
             {services.slice(0, 3).map((service) => <ServiceItem key={service.id} service={service} onPress={() => openService(service)} />)}
-            <Notice>Phase 02 interactive UI preview. No live services or checkout yet.</Notice>
+            <Notice>Categories and prices load from the database. Bookings and checkout are not active yet.</Notice>
           </>
         ) : tab === 'explore' ? (
           <>
             <PageHeader kicker="Service catalog" title="Explore services" description="Find a solution for your home." />
+            {catalogError ? <Notice>{catalogError}. Check the API connection.</Notice> : null}
+            {catalogError && <AppButton label="Retry" variant="secondary" compact onPress={() => { void loadCatalog(); }} />}
+            {catalogLoading && <AppText color={colors.muted}>Loading services...</AppText>}
             <SearchField value={search} onChangeText={setSearch} placeholder="Search categories or services" />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 20 }} contentContainerStyle={{ gap: 9 }}>
               {['All', ...categories.map((item) => item.name)].map((item) => (
@@ -286,7 +335,7 @@ function PreviewApp() {
               <SurfaceCard style={styles.empty}>
                 <View style={styles.emptyIcon}><Icon name="calendar-outline" size={33} color={colors.primary} /></View>
                 <AppText weight="bold" size={19}>No requests yet</AppText>
-                <AppText color={colors.inkSoft} size={13} style={{ textAlign: 'center', lineHeight: 20, marginVertical: 12 }}>Browse services to create your first booking preview.</AppText>
+                <AppText color={colors.inkSoft} size={13} style={{ textAlign: 'center', lineHeight: 20, marginVertical: 12 }}>Browse the current catalog to create a local booking preview.</AppText>
                 <AppButton label="Explore services" onPress={() => navigate('explore')} compact />
               </SurfaceCard>
             ) : drafts.map((draft) => (

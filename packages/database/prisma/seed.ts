@@ -50,14 +50,14 @@ async function main(): Promise<void> {
     const savedCategory = await database.serviceCategory.upsert({
       where: { slug: category.slug },
       create: { slug: category.slug, name: category.name, sortOrder: category.sortOrder },
-      update: { name: category.name, sortOrder: category.sortOrder },
+      update: {}, // Never overwrite an administrator's subsequent edits.
     });
 
     for (const service of category.services) {
       await database.service.upsert({
         where: { slug: service.slug },
         create: { ...service, categoryId: savedCategory.id },
-        update: { ...service, categoryId: savedCategory.id },
+        update: {}, // Seed is create-only after the first insertion.
       });
     }
   }

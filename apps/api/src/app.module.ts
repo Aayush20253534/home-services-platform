@@ -11,12 +11,14 @@ import { AuthService } from './auth/auth.service';
 import { OtpSender } from './auth/otp.sender';
 import { AccessController } from './auth/access.controller';
 import { AuthGuard, RolesGuard } from './auth/auth.guards';
+import { CatalogModule } from './catalog/catalog.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
     DatabaseModule,
     JwtModule.register({}),
+    CatalogModule,
   ],
   controllers: [AppController, DatabaseController, AuthController, AccessController],
   providers: [
