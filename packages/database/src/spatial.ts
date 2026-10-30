@@ -23,7 +23,7 @@ export function assertCoordinates(point: Coordinates): void {
  * NOT a final provider ranking or dispatch decision.
  */
 export async function findEligibleServiceAreas(
-  prisma: PrismaClient,
+  prisma: Pick<PrismaClient, '$queryRaw'>,
   customer: Coordinates,
   limit = 25,
 ): Promise<EligibleServiceArea[]> {
