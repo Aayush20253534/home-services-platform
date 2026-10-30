@@ -1,6 +1,6 @@
 {
   "name": "@home-services/customer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "main": "expo/AppEntry",
   "scripts": {
@@ -12,6 +12,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@home-services/design-tokens": "workspace:*",
+    "@home-services/mobile-ui": "workspace:*",
+    "@expo/vector-icons": "^15.0.0",
     "expo": "~57.0.0",
     "react": "19.2.3",
     "react-native": "0.86.0"
