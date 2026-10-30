@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  ArrowUpRight, Bell, CalendarCheck, ChevronDown, ClipboardList, Grid2X2,
+  ArrowUpRight, Bell, CalendarCheck, ChevronDown, Grid2X2,
   LayoutDashboard, LifeBuoy, Menu, Settings2, ShieldCheck, Users, Wrench, X,
   type LucideIcon,
 } from 'lucide-react';
